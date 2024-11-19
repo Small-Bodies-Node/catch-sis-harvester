@@ -1,0 +1,23 @@
+[project]
+name = "catch-sis-harvester"
+description = "Metadata harvesting for the CATCH and SBN Survey Image Service tools"
+readme = "README.md"
+authors = [{ name = "Michael S. P. Kelley", email = "msk@astro.umd.edu" }]
+license = { text = "BSD 3-Clause License" }
+dependencies = ["numpy", "astropy>=6.1", "catch", "sbn-survey-image-service"]
+dynamic = ["version"]
+
+[build-system]
+requires = ["setuptools>=45", "wheel", "setuptools_scm[toml]>=6.2"]
+build-backend = 'setuptools.build_meta'
+
+[tool.setuptools_scm]
+write_to = "cs_harvester/_version.py"
+
+[tool.setuptools]
+zip-safe = false
+
+[tool.setuptools.packages.find]
+
+[project.scripts]
+harvest = "cs_harvester.harvest:main"
