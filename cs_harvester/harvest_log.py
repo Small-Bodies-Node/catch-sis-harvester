@@ -3,7 +3,6 @@ import numpy as np
 from astropy.table import Table
 from astropy.time import Time
 from .exceptions import ConcurrentHarvesting
-from .logger import get_logger
 
 
 class HarvestLog:
@@ -23,8 +22,6 @@ class HarvestLog:
 
         from . import config
 
-        logger = get_logger()
-
         self.data: Table
         if os.path.exists(config.harvest_log_filename):
             self.data = Table.read(
@@ -43,11 +40,10 @@ class HarvestLog:
                     "duplicates",
                     "errors",
                 ],
-                dtype=["<U8", "<U23", "<U23", "<U32", "<U23", int, int, int],
+                dtype=["<U8", "<U23", "<U23", "<U32", "<U23", int, int, int, int],
             )
 
         if any(self.data["end"] == "processing"):
-            logger.error('Harvester log state is "processing"')
             raise ConcurrentHarvesting()
 
     def write(self) -> None:
@@ -81,8 +77,8 @@ class HarvestLog:
 
         from . import config
 
-        target = self.data["target"] == config.harvest_target
-        source = self.data["source"] == config.harvest_source
+        target = self.data["target"] == config.target
+        source = self.data["source"] == config.source
 
         if not any(target * source):
             return Time(0, format="jd")

@@ -114,3 +114,5 @@ Pipfile*
 *.log
 cs_harvester/version.py
 logging/*log
+*db
+harvest-log.ecsv

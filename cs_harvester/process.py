@@ -18,7 +18,7 @@ from catch.model.atlas import (
 from .lidvid import LIDVID
 
 
-def process(label: Label):
+def process(label: Label, source: str):
     """Get common metadata from a PDS4 label.
 
 
@@ -26,6 +26,9 @@ def process(label: Label):
     ----------
     label : pds4_tools.reader.label_objects.Label
         The label to process.
+
+    source : str
+        The expected data source for this label.
 
 
     Returns
@@ -37,13 +40,13 @@ def process(label: Label):
 
     """
 
-    lidvid = LIDVID(label)
+    lidvid = LIDVID.from_label(label)
 
     # use the label to determine which data model object to use
     cls: Observation = Observation
-    if lidvid.bundle == "gbo.ast.atlas.survey":
+    if lidvid.bundle.startswith("gbo.ast.atlas.survey"):
         # example LID: urn:nasa:pds:gbo.ast.atlas.survey:59613:01a59613o0586o_fits
-        tel = lid.product_id[:2]
+        tel = lidvid.product_id[:2]
         cls = {
             "01": ATLASMaunaLoa,
             "02": ATLASHaleakela,
@@ -52,6 +55,12 @@ def process(label: Label):
         }[tel]
 
     obs = cls()
+
+    # verify observation model
+    if source == "atlas" and not isinstance(obs, ATLAS):
+        breakpoint()
+        raise ValueError("Expected an ATLAS label")
+
     obs.product_id = str(lidvid.lid)
     obs.mjd_start = Time(
         label.find("Observation_Area/Time_Coordinates/start_date_time").text

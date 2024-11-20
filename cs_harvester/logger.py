@@ -20,8 +20,8 @@ def get_logger():
 def setup_logger():
     from . import config
 
-    if not os.path.exists(os.path.dirname(config.log_filename)):
-        os.makedirs(os.path.dirname(config.log_filename), exist_ok=True)
+    if not os.path.exists(os.path.dirname(config.runtime_log_filename)):
+        os.makedirs(os.path.dirname(config.runtime_log_filename), exist_ok=True)
 
     logger = logging.getLogger(config.logger_name)
     logger.setLevel(logging.INFO)
@@ -33,17 +33,19 @@ def setup_logger():
     formatter = logging.Formatter("%(levelname)s:%(name)s:%(asctime)s: %(message)s")
 
     handler = logging.StreamHandler(sys.stderr)
-    handler.setLevel(logging.ERROR)
     handler.setFormatter(formatter)
     logger.addHandler(handler)
 
-    handler = logging.FileHandler(config.log_filename)
-    handler.setLevel(logging.INFO)
+    handler = logging.FileHandler(config.runtime_log_filename)
     handler.setFormatter(formatter)
     logger.addHandler(handler)
 
     if config.verbose:
         logger.setLevel(logging.DEBUG)
+    else:
+        # error for console, INFO for file
+        logger.handlers[0].setLevel(logging.ERROR)
+        logger.handlers[1].setLevel(logging.INFO)
 
     logger.info("Initialized.")
     logger.debug(f"astropy {astropy_version}")

@@ -4,7 +4,7 @@ description = "Metadata harvesting for the CATCH and SBN Survey Image Service to
 readme = "README.md"
 authors = [{ name = "Michael S. P. Kelley", email = "msk@astro.umd.edu" }]
 license = { text = "BSD 3-Clause License" }
-dependencies = ["numpy", "astropy>=6.1", "catch", "sbn-survey-image-service"]
+dependencies = ["numpy", "astropy>=6.1", "catch"]
 dynamic = ["version"]
 
 [build-system]
@@ -12,7 +12,7 @@ requires = ["setuptools>=45", "wheel", "setuptools_scm[toml]>=6.2"]
 build-backend = 'setuptools.build_meta'
 
 [tool.setuptools_scm]
-write_to = "cs_harvester/_version.py"
+write_to = "cs_harvester/version.py"
 
 [tool.setuptools]
 zip-safe = false
@@ -20,4 +20,5 @@ zip-safe = false
 [tool.setuptools.packages.find]
 
 [project.scripts]
-harvest = "cs_harvester.harvest:main"
+harvest-atlas = "cs_harvester.add.atlas:main"
+harvest-skymapper = "cs_harvester.add.skymapper:main"

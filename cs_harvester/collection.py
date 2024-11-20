@@ -35,7 +35,7 @@ def labels_from_inventory(
     remaining = set(inventory)
     for fn in files:
         label = pds4_tools.read(fn, quiet=True, lazy_load=True).label
-        lidvid = str(LIDVID(label))
+        lidvid = str(LIDVID.from_label(label))
         if lidvid in remaining:
             remaining -= set([lidvid])
             yield label

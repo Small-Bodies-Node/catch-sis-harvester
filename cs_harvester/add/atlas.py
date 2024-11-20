@@ -15,24 +15,23 @@ import sys
 import sqlite3
 import argparse
 from glob import glob
-from typing import Iterator
 from packaging.version import Version
 
-import numpy as np
+from sqlalchemy.exc import IntegrityError
 import astropy.units as u
 from astropy.time import Time
-from astropy.table import Table
 import pds4_tools
+from pds4_tools.reader.general_objects import StructureList
 
 from catch import Catch
 from sbsearch.logging import ProgressTriangle
-from ...exceptions import LabelError
-from ...lidvid import LIDVID, collection_version
-from ...logger import get_logger
-from ...collection import labels_from_inventory
-from ...harvest_log import HarvestLog
-from ...exceptions import ConcurrentHarvesting
-from ...process import process
+from ..exceptions import LabelError
+from ..lidvid import LIDVID, collection_version
+from ..logger import get_logger, setup_logger
+from ..collection import labels_from_inventory
+from ..harvest_log import HarvestLog
+from ..exceptions import ConcurrentHarvesting
+from ..process import process
 
 
 def open_validation_database(fn) -> sqlite3.Connection:
@@ -70,36 +69,36 @@ def validated_collections_from_db(db, start, stop):
 def latest_collection(files):
     """Search list of xml files for collections and return the highest versioned collection."""
 
-    labels = [pds4_tools.read(fn, quiet=True, lazy_load=True) for fn in files]
+    latest = None
+    max_version = Version("0")
+    for fn in files:
+        struct = pds4_tools.read(fn, quiet=True, lazy_load=True)
+        version = collection_version(struct.label)
 
-    versions = []
-    for label in labels:
-        try:
-            versions.append(collection_version(label))
-        except LabelError:
-            pass
+        if version > max_version:
+            latest = struct
+            max_version = version
 
-    return labels[versions.index(max(versions))]
+    return latest
+
+
+def find_collection(location: str, night_number: int) -> StructureList:
+    files = glob(f"/n/{location}/collection_{night_number}*.xml")
+    return latest_collection(files)
 
 
 def process_collection(
+    collection: StructureList,
     location: str,
-    night_number: int,
     timestamp: str,
     harvest_log: HarvestLog,
     catch: Catch,
-    only_process: str | None,
 ):
-    from ... import config
+    from .. import config
 
     logger = get_logger()
 
-    files = glob(f"/n/{location}/collection_{night_number}*.xml")
-    collection = latest_collection(files)
-    lidvid = LIDVID(collection.label)
-
-    if only_process is not None and lid != only_process:
-        return
+    lidvid = LIDVID.from_label(collection.label)
 
     # Find image products in the data directory
     data_directory = os.path.normpath(f"/n/{location}/data")
@@ -135,17 +134,19 @@ def process_collection(
     for label in labels:
         tri.update()
         try:
-            observations.append(process(label))
-            added += 1
+            observations.append(process(label, "atlas"))
         except Exception as exc:
             logger.error(exc)
             errors += 1
 
         if not config.dry_run:
-            if config.update:
-                catch.update_observations(observations)
-            else:
+            try:
                 catch.add_observations(observations)
+            except IntegrityError as exc:
+                logger.error(exc)
+                harvest_log.data[-1]["end"] = "failed"
+                harvest_log.write()
+                raise exc
 
     logger.info("%d files processed", tri.i)
     logger.info("%d files added", added)
@@ -159,17 +160,22 @@ def process_collection(
     harvest_log.data[-1]["duplicates"] += duplicates
     harvest_log.data[-1]["errors"] += errors
     harvest_log.data[-1]["time_of_last"] = max(
-        harvest_log[-1]["time_of_last"],
+        harvest_log.data[-1]["time_of_last"],
         timestamp,
     )
     harvest_log.write()
 
 
-def add_arguments(parser):
+def get_arguments():
+    from .. import config
+
+    parser = argparse.ArgumentParser()
+
+    config.add_arguments(parser)
     parser.add_argument(
         "file",
         type=os.path.normpath,
-        help="ATLAS-PDS processing database or PDS4 label to test (with --test)",
+        help="ATLAS-PDS processing database",
     )
     mutex = parser.add_mutually_exclusive_group()
     mutex.add_argument(
@@ -186,19 +192,33 @@ def add_arguments(parser):
         nargs=2,
         help="harvest metadata validated between these dates",
     )
-    return parser
+    parser.add_argument(
+        "--list",
+        action="store_true",
+        help="only list the collections that would be ingested",
+    )
+
+    args = parser.parse_args()
+
+    config.target = "catch"
+    config.source = "atlas"
+    config.with_args(args)
+
+    return args
 
 
-def main(args):
-    from ... import config
+def main():
+    from .. import config
 
-    logger = get_logger()
+    args = get_arguments()
+    logger = setup_logger()
 
     validation_db = open_validation_database(args.file)
 
     try:
         harvest_log = HarvestLog()
-    except ConcurrentHarvesting():
+    except ConcurrentHarvesting:
+        logger.error("Another process has locked the harvest log")
         sys.exit(1)
 
     start: Time
@@ -226,15 +246,26 @@ def main(args):
     validation_db.close()
 
     if len(results) == 0:
-        logger.info("No new data collections found.")
+        logger.info("No new data collections found")
+        logger.info("Finished")
+        return
+
+    if args.list:
+        logger.info("Listing %d collections to process", len(results))
+        for i, row in enumerate(results):
+            collection = find_collection(row["location"], row["nn"])
+            print(LIDVID.from_label(collection.label))
+
+        logger.info("Finished")
         return
 
     with Catch.with_config(config.catch_config) as catch:
-        harvest_log.add_row(
+        harvest_log.data.add_row(
             {
+                "target": "catch",
                 "start": Time.now().iso,
                 "end": "processing",
-                "source": config.harvest_source,
+                "source": config.source,
                 "time_of_last": "",
                 "files": 0,
                 "added": 0,
@@ -245,32 +276,40 @@ def main(args):
 
         for i, row in enumerate(results):
             logger.info("%d collections to process.", len(results) - i)
+            collection = find_collection(row["location"], row["nn"])
+
+            if (args.only_process is not None) and (
+                LIDVID.from_label(collection.label).lid != args.only_process.lid
+            ):
+                continue
+
             process_collection(
+                collection,
                 row["location"],
-                row["nn"],
                 Time(row["recorded_at"], format="unix").iso,
-                catch,
                 harvest_log,
-                args.only_process,
+                catch,
             )
 
         logger.info("Processing complete.")
-        logger.info("%d files processed", harvest_log[-1]["files"])
-        logger.info("%d files added", harvest_log[-1]["added"])
-        logger.info("%d files already in the database", harvest_log[-1]["duplicates"])
-        logger.info("%d files errored", harvest_log[-1]["errors"])
+        logger.info("%d files processed", harvest_log.data[-1]["files"])
+        logger.info("%d files added", harvest_log.data[-1]["added"])
+        logger.info(
+            "%d files already in the database", harvest_log.data[-1]["duplicates"]
+        )
+        logger.info("%d files errored", harvest_log.data[-1]["errors"])
 
-        harvest_log[-1]["end"] = Time.now().iso
+        harvest_log.data[-1]["end"] = Time.now().iso
         harvest_log.write()
 
-        if not config.dry_run:
-            logger.info("Updating survey statistics.")
-            for source in (
-                "atlas_mauna_loa",
-                "atlas_haleakela",
-                "atlas_rio_hurtado",
-                "atlas_sutherland",
-            ):
-                catch.update_statistics(source=source)
+        # if not config.dry_run:
+        #     logger.info("Updating survey statistics.")
+        #     for source in (
+        #         "atlas_mauna_loa",
+        #         "atlas_haleakela",
+        #         "atlas_rio_hurtado",
+        #         "atlas_sutherland",
+        #     ):
+        #         catch.update_statistics(source=source)
 
-    logger.info("Finished.")
+    logger.info("Finished")
