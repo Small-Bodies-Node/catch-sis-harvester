@@ -19,105 +19,23 @@ wget -r -R *.fits --no-parent https://sbnarchive.psi.edu/pds4/surveys/gbo.ast.sp
 
 import os
 import argparse
-import logging
 from glob import iglob
 
-from astropy.time import Time
 import pds4_tools
 
-from catch import Catch, Config
+from catch import Catch
 from catch.model.spacewatch import Spacewatch
 from sbsearch.logging import ProgressTriangle
-from ..lidvid import LIDVID, collection_version
+from ..lidvid import LIDVID
 from ..logger import get_logger, setup_logger
 from ..collection import labels_from_inventory
 from ..process import process
-
-
-def inventory(base_path, vid=None):
-    """Iterate over all files of interest.
-
-    Returns
-    -------
-    labels : iterator of tuples
-        Path and pds4_tools label object.
-
-    """
-
-    logger = logging.getLogger("add-spacewatch")
-    inventory_fn = f"{base_path}/gbo.ast.spacewatch.survey/data/collection_gbo.ast.spacewatch.survey_data_inventory.csv"
-
-    if not os.path.exists(base_path):
-        raise Exception("Missing inventory list %s", fn)
-
-    # Read in all relevant LIDs from the inventory.
-    lids = set()
-    with open(inventory_fn, "r") as inf:
-        for line in inf:
-            if not line.startswith("P,urn:nasa:pds:gbo.ast.spacewatch.survey:data:sw_"):
-                continue
-            if ".fits" not in line:
-                continue
-
-            if vid is not None and not line[:-1].endswith(vid):
-                continue
-
-            lid = line[2:-6]
-            lids.add(lid)
-
-    # search directory-by-directory for labels with those LIDs
-    for fn in iglob(f"{base_path}/gbo.ast.spacewatch.survey/data/20*/*/*/*.xml"):
-        label = pds4_read(fn, lazy_load=True, quiet=True).label
-        lid = label.find("Identification_Area/logical_identifier").text
-        if lid in lids:
-            lids.remove(lid)
-            yield fn, label
-
-    # did we find all the labels?
-    if len(lids) > 0:
-        logger.error(f"{len(lids)} LIDs were not found.")
 
 
 def get_observation(catch, label) -> Spacewatch:
     lid = label.find("Identification_Area/logical_identifier").text
     obs = catch.db.session.query(Spacewatch).filter(Spacewatch.product_id == lid).one()
     return obs
-
-
-# def process(fn, label, obs=None):
-#     """If obs is defined, then it is updated and returned."""
-#     lid = label.find("Identification_Area/logical_identifier").text
-#     if obs is None:
-#         obs = Spacewatch()
-
-#     obs.product_id = lid
-#     obs.mjd_start = Time(
-#         label.find("Observation_Area/Time_Coordinates/start_date_time").text
-#     ).mjd
-#     obs.mjd_stop = Time(
-#         label.find("Observation_Area/Time_Coordinates/stop_date_time").text
-#     ).mjd
-#     obs.exposure = float(label.find(".//img:Exposure/img:exposure_duration").text)
-#     obs.filter = label.find(".//img:Optical_Filter/img:filter_name").text
-#     obs.label = fn[fn.index("gbo.ast.spacewatch.survey") :]
-
-#     survey = label.find(".//survey:Survey")
-#     ra, dec = [], []
-#     for corner in ("Top Left", "Top Right", "Bottom Right", "Bottom Left"):
-#         coordinate = survey.find(
-#             "survey:Image_Corners"
-#             f"/survey:Corner_Position[survey:corner_identification='{corner}']"
-#             "/survey:Coordinate"
-#         )
-#         ra.append(float(coordinate.find("survey:right_ascension").text))
-#         dec.append(float(coordinate.find("survey:declination").text))
-#     obs.set_fov(ra, dec)
-
-#     maglimit = survey.find(".//survey:Rollover/survey:rollover_magnitude")
-#     if maglimit is not None:
-#         obs.maglimit = float(maglimit.text)
-
-#     return obs
 
 
 def get_arguments():
@@ -162,16 +80,36 @@ def main():
     if args.vid is not None:
         logger.info("Only processing labels with version ID == %s", args.vid)
 
+    base_path = os.path.dirname(args.collection)
+
     inventory = []
-    for lidvid in collection[0].data["LIDVID_LID"]:
+    files = set()
+    for row in collection[0].data["LIDVID_LID"]:
+        lidvid = LIDVID(row)
         if args.vid is not None and lidvid.vid != args.vid:
             continue
-        inventory.append(lidvid)
 
-    base_path = os.path.dirname(args.collection)
-    files = set(iglob(f"{base_path}/gbo.ast.spacewatch.survey/data/20*/*/*/*.xml"))
+        inventory.append(row)
 
-    with Catch.with_config(args.config) as catch:
+        y, m, d = lidvid.product_id.split("_")[3:6]
+        files.add(
+            f"{base_path}/gbo.ast.spacewatch.survey/data/{y}/{m}/{d}/{lidvid.lid[:-4]}xml"
+        )
+
+    def add_or_update(observations):
+        try:
+            if args.update:
+                catch.update_observations(observations)
+            else:
+                catch.add_observations(observations)
+        except:
+            logger.error(
+                "A fatal error occurred saving data to the database.",
+                exc_info=True,
+            )
+            raise
+
+    with Catch.with_config(config.catch_config) as catch:
         observations = []
         failed = 0
 
@@ -186,7 +124,6 @@ def main():
 
             try:
                 obs = process(label, obs)
-                obs.label = fn[fn.index("gbo.ast.spacewatch.survey") :]
                 observations.append(process(label, obs))
                 msg = "updating" if args.update else "adding"
             except ValueError as e:
@@ -198,35 +135,16 @@ def main():
 
             logger.debug("%s: %s", msg, fn)
 
-            if args.dry_run or args.t:
+            if config.dry_run:
                 continue
 
             if len(observations) >= 8192:
-                try:
-                    if args.update:
-                        catch.update_observations(observations)
-                    else:
-                        catch.add_observations(observations)
-                except:
-                    logger.error(
-                        "A fatal error occurred saving data to the database.",
-                        exc_info=True,
-                    )
-                    raise
+                add_or_update(observations)
                 observations = []
 
         # add any remaining files
-        if not (args.dry_run or args.t) and (len(observations) > 0):
-            try:
-                if args.update:
-                    catch.update_observations(observations)
-                else:
-                    catch.add_observations(observations)
-            except:
-                logger.error(
-                    "A fatal error occurred saving data to the database.", exc_info=True
-                )
-                raise
+        if not config.dry_run and (len(observations) > 0):
+            add_or_update(observations)
 
         logger.info("%d files processed.", tri.i)
 

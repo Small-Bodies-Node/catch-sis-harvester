@@ -29,7 +29,6 @@ def labels_from_inventory(
     iterator
         File name and label.
 
-
     """
 
     # yield all .xml labels with lidvids in the inventory
