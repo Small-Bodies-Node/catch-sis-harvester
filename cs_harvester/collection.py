@@ -1,12 +1,12 @@
-from glob import glob
 from typing import Iterator
 import pds4_tools
-from .logger import get_logger
 from .lidvid import LIDVID
 
 
 def labels_from_inventory(
-    inventory: list[str], files: list[str], error_if_incomplete: bool = False
+    inventory: list[str],
+    files: list[str],
+    error_if_incomplete: bool = False,
 ) -> Iterator:
     """Iterator of labels from a collection inventory.
 
@@ -26,7 +26,8 @@ def labels_from_inventory(
 
     Returns
     -------
-    iterator of Label
+    iterator
+        File name and label.
 
 
     """
@@ -38,7 +39,7 @@ def labels_from_inventory(
         lidvid = str(LIDVID.from_label(label))
         if lidvid in remaining:
             remaining -= set([lidvid])
-            yield label
+            yield fn, label
 
     if len(remaining) > 0:
         raise ValueError(

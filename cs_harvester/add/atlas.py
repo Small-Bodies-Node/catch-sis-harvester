@@ -25,7 +25,6 @@ from pds4_tools.reader.general_objects import StructureList
 
 from catch import Catch
 from sbsearch.logging import ProgressTriangle
-from ..exceptions import LabelError
 from ..lidvid import LIDVID, collection_version
 from ..logger import get_logger, setup_logger
 from ..collection import labels_from_inventory
@@ -131,7 +130,7 @@ def process_collection(
     errors = 0
     observations = []
     tri: ProgressTriangle = ProgressTriangle(1, logger)
-    for label in labels:
+    for _, label in labels:
         tri.update()
         try:
             observations.append(process(label, "atlas"))
