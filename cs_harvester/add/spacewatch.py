@@ -154,4 +154,3 @@ def main():
         if not (args.dry_run or args.t):
             logger.info("Updating survey statistics.")
             catch.update_statistics(source="spacewatch")
-            logger.info("Consider database vacuum.")
