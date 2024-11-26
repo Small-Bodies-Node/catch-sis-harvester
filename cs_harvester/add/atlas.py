@@ -199,8 +199,6 @@ def get_arguments():
 
     args = parser.parse_args()
 
-    config.target = "catch"
-    config.source = "atlas"
     config.with_args(args)
 
     return args
@@ -208,6 +206,9 @@ def get_arguments():
 
 def main():
     from .. import config
+
+    config.target = "catch"
+    config.source = "atlas"
 
     args = get_arguments()
     logger = setup_logger()
@@ -301,14 +302,14 @@ def main():
         harvest_log.data[-1]["end"] = Time.now().iso
         harvest_log.write()
 
-        # if not config.dry_run:
-        #     logger.info("Updating survey statistics.")
-        #     for source in (
-        #         "atlas_mauna_loa",
-        #         "atlas_haleakela",
-        #         "atlas_rio_hurtado",
-        #         "atlas_sutherland",
-        #     ):
-        #         catch.update_statistics(source=source)
+        if not config.dry_run:
+            logger.info("Updating survey statistics.")
+            for source in (
+                "atlas_mauna_loa",
+                "atlas_haleakela",
+                "atlas_rio_hurtado",
+                "atlas_sutherland",
+            ):
+                catch.update_statistics(source=source)
 
     logger.info("Finished")

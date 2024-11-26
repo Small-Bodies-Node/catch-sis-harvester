@@ -18,7 +18,7 @@ from catch.model.atlas import (
 from .lidvid import LIDVID
 
 
-def process(label: Label, source: str, update: Observation | None = False):
+def process(label: Label, source: str, update: Observation | None = None):
     """Get common metadata from a PDS4 label.
 
 
@@ -113,5 +113,7 @@ def process(label: Label, source: str, update: Observation | None = False):
         obs.diff = any(
             [derived_lid.text == expected_diff_lid for derived_lid in derived_lids]
         )
+    elif isinstance(obs, Spacewatch):
+        obs.file_name = label.find(".//File_Area_Observational/File/file_name").text
 
     return obs

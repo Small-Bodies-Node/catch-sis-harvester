@@ -1,3 +1,5 @@
+import os
+from glob import glob
 from typing import Iterator
 import pds4_tools
 from .lidvid import LIDVID
@@ -44,3 +46,38 @@ def labels_from_inventory(
         raise ValueError(
             "Not all inventory LIDVIDs were found: {}".format(", ".join(remaining))
         )
+
+
+case_insensitive_find_file_lists: dict[str, dict[str, str]] = {}
+
+
+def case_insensitive_find_xml_file(fn: str) -> str:
+    """A case insensitive find file function.
+
+    Helpful for finding file names with PDS4 LIDs.
+
+
+    Parameters
+    ----------
+    fn : str
+        The file name to find.
+
+
+    Returns
+    -------
+    found : str
+
+    """
+
+    dir = os.path.dirname(fn)
+
+    # only read the files once:
+    if dir not in case_insensitive_find_file_lists:
+        case_insensitive_find_file_lists[dir] = {
+            _fn.lower(): _fn for _fn in glob(f"{dir}/*xml")
+        }
+
+    try:
+        return case_insensitive_find_file_lists[dir][fn]
+    except KeyError:
+        raise FileNotFoundError(fn)

@@ -22,3 +22,4 @@ zip-safe = false
 [project.scripts]
 harvest-atlas = "cs_harvester.add.atlas:main"
 harvest-skymapper = "cs_harvester.add.skymapper:main"
+harvest-spacewatch = "cs_harvester.add.spacewatch:main"
