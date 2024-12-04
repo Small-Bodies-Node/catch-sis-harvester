@@ -7,7 +7,7 @@ from astropy.time import Time
 from astropy.coordinates import SkyCoord
 from pds4_tools.reader.label_objects import Label
 
-from catch.model import Observation
+from catch.model import Observation, Spacewatch
 from catch.model.atlas import (
     ATLAS,
     ATLASMaunaLoa,
@@ -18,7 +18,7 @@ from catch.model.atlas import (
 from .lidvid import LIDVID
 
 
-def process(label: Label, source: str):
+def process(label: Label, source: str, update: Observation | None = None):
     """Get common metadata from a PDS4 label.
 
 
@@ -29,6 +29,9 @@ def process(label: Label, source: str):
 
     source : str
         The expected data source for this label.
+
+    update : Observation, optional
+        If ``True``, then this observation is updated and returned.
 
 
     Returns
@@ -53,13 +56,19 @@ def process(label: Label, source: str):
             "03": ATLASSutherland,
             "04": ATLASRioHurtado,
         }[tel]
+    elif lidvid.bundle.startswith("gbo.ast.spacewatch.survey"):
+        cls = Spacewatch
 
-    obs = cls()
+    if update is not None:
+        obs = update
+    else:
+        obs = cls()
 
     # verify observation model
     if source == "atlas" and not isinstance(obs, ATLAS):
-        breakpoint()
         raise ValueError("Expected an ATLAS label")
+    elif source == "spacewatch" and not isinstance(obs, Spacewatch):
+        raise ValueError("Expected a Spacewatch label")
 
     obs.product_id = str(lidvid.lid)
     obs.mjd_start = Time(
@@ -88,6 +97,10 @@ def process(label: Label, source: str):
     if maglimit is not None:
         obs.maglimit = float(maglimit.text)
 
+    maglimit = survey.find(".//survey:Rollover/survey:rollover_magnitude")
+    if maglimit is not None:
+        obs.maglimit = float(maglimit.text)
+
     # survey specific sections here
     if isinstance(obs, ATLAS):
         obs.field_id = survey.find("survey:field_id").text
@@ -100,5 +113,7 @@ def process(label: Label, source: str):
         obs.diff = any(
             [derived_lid.text == expected_diff_lid for derived_lid in derived_lids]
         )
+    elif isinstance(obs, Spacewatch):
+        obs.file_name = label.find(".//File_Area_Observational/File/file_name").text
 
     return obs
