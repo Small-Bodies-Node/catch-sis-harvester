@@ -222,7 +222,7 @@ def main():
         sys.exit(1)
 
     start: Time
-    stop: Time = Time.now().iso
+    stop: Time = Time.now()
     if args.between_dates is not None:
         start = args.between_dates[0]
         stop = args.between_dates[-1]
