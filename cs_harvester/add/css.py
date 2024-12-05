@@ -238,7 +238,7 @@ def main():
     timestamp = Time(os.stat(listfile).st_mtime, format="unix").iso
 
     with harvester_db(args.db) as db:
-        with Catch.with_config(args.config) as catch:
+        with Catch.with_config(args.catch_config) as catch:
             harvest_log.data.add_row(
                 {
                     "target": "catch",
