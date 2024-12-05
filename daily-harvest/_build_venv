@@ -53,3 +53,4 @@ popd
 python3 -m pip install numpy sbpy cython psycopg2-binary
 python3 -m pip install "git+https://git@github.com/Small-Bodies-Node/sbsearch.git#egg=sbsearch"
 python3 -m pip install "git+https://git@github.com/Small-Bodies-Node/catch.git#egg=catch"
+python3 -m pip install "git+https://git@github.com/Small-Bodies-Node/catch-sis-harvester.git#egg=catch-sis-harvester"
