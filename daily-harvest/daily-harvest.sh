@@ -20,4 +20,4 @@ OPTS=
 if [[ -e css-file-list.txt ]]; then
     OPTS="-f css-file-list.txt"
 fi
-python3 .venv/src/catch/scripts/add-css.py $OPTS
+harvest-css $OPTS
