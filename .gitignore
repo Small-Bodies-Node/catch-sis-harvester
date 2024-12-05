@@ -111,6 +111,7 @@ venv.bak/
 temp/**
 Pipfile*
 *.config
+!logrotate.config
 *.log
 cs_harvester/version.py
 logging/*log

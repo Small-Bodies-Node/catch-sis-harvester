@@ -16,13 +16,14 @@ cd daily-harvest
 Checkout the repository, but just the daily-harvest scripts:
 ```
 git clone --no-checkout https://github.com/Small-Bodies-Node/catch-sis-harvester.git src
-cd daily-harvest
+cd src
 git sparse-checkout init --cone  # checkout root dir files (build, etc.)
 git sparse-checkout set daily-harvest
 git checkout
+cp daily-harvest/* ..
 ```
 
 Create the virtual environment:
 ```
-bash daily-harvest/_build_venv
+bash _build_venv
 ```
