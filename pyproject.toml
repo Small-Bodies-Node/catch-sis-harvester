@@ -23,3 +23,4 @@ zip-safe = false
 harvest-atlas = "cs_harvester.add.atlas:main"
 harvest-skymapper = "cs_harvester.add.skymapper:main"
 harvest-spacewatch = "cs_harvester.add.spacewatch:main"
+harvest-css = "cs_harvester.add.css:main"

@@ -15,6 +15,12 @@ from catch.model.atlas import (
     ATLASRioHurtado,
     ATLASSutherland,
 )
+from catch.model.catalina import (
+    CatalinaSkySurvey,
+    CatalinaBigelow,
+    CatalinaLemmon,
+    CatalinaBokNEOSurvey,
+)
 from .lidvid import LIDVID
 
 
@@ -58,6 +64,14 @@ def process(label: Label, source: str, update: Observation | None = None):
         }[tel]
     elif lidvid.bundle.startswith("gbo.ast.spacewatch.survey"):
         cls = Spacewatch
+    elif lidvid.bundle.startswith("gbo.ast.catalina.survey"):
+        tel = lidvid.product_id[:3].upper()
+        if tel in CatalinaBigelow._telescopes:
+            cls = CatalinaBigelow
+        elif tel in CatalinaLemmon._telescopes:
+            cls = CatalinaLemmon
+        elif tel in CatalinaBokNEOSurvey._telescopes:
+            cls = CatalinaBokNEOSurvey
 
     if update is not None:
         obs = update
@@ -69,6 +83,8 @@ def process(label: Label, source: str, update: Observation | None = None):
         raise ValueError("Expected an ATLAS label")
     elif source == "spacewatch" and not isinstance(obs, Spacewatch):
         raise ValueError("Expected a Spacewatch label")
+    elif source == "css" and not isinstance(obs, CatalinaSkySurvey):
+        raise ValueError("Expected a Catalina Sky Survey label")
 
     obs.product_id = str(lidvid.lid)
     obs.mjd_start = Time(
@@ -77,8 +93,15 @@ def process(label: Label, source: str, update: Observation | None = None):
     obs.mjd_stop = Time(
         label.find("Observation_Area/Time_Coordinates/stop_date_time").text
     ).mjd
-    obs.exposure = float(label.find(".//img:Exposure/img:exposure_duration").text)
-    obs.filter = label.find(".//img:Optical_Filter/img:filter_name").text
+
+    exposure = label.find(".//img:Exposure/img:exposure_duration")
+    if exposure is None:
+        obs.exposure = round((obs.mjd_stop - obs.mjd_start) * 86400, 3)
+    else:
+        obs.exposure = float(exposure.text)
+
+    filter = label.find(".//img:Optical_Filter/img:filter_name")
+    obs.filter = None if filter is None else filter.text
 
     survey = label.find(".//survey:Survey")
     ra, dec = [], []
@@ -92,12 +115,19 @@ def process(label: Label, source: str, update: Observation | None = None):
         dec.append(float(coordinate.find("survey:declination").text))
     obs.set_fov(ra, dec)
 
-    # Need to account for other maglimit types
     maglimit = survey.find(".//survey:N_Sigma_Limit/survey:limiting_magnitude")
     if maglimit is not None:
         obs.maglimit = float(maglimit.text)
 
     maglimit = survey.find(".//survey:Rollover/survey:rollover_magnitude")
+    if maglimit is not None:
+        obs.maglimit = float(maglimit.text)
+
+    maglimit = survey.find(
+        "survey:Limiting_Magnitudes"
+        "/survey:Percentage_Limit[survey:Percentage_Limit='50']"
+        "/survey:limiting_magnitude"
+    )
     if maglimit is not None:
         obs.maglimit = float(maglimit.text)
 

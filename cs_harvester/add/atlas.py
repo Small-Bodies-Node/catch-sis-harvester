@@ -130,12 +130,12 @@ def process_collection(
     errors = 0
     observations = []
     tri: ProgressTriangle = ProgressTriangle(1, logger)
-    for _, label in labels:
+    for fn, label in labels:
         tri.update()
         try:
             observations.append(process(label, "atlas"))
         except Exception as exc:
-            logger.error(exc)
+            logger.error(": ".join((str(exc) + fn)))
             errors += 1
 
         if not config.dry_run:
