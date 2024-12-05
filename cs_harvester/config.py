@@ -20,7 +20,7 @@ def add_arguments(parser):
 
     parser.add_argument(
         "--catch-config",
-        default=None,
+        default="catch.config",
         type=CatchConfig.from_file,
         help="CATCH configuration file",
     )
