@@ -1,6 +1,6 @@
 import os
 import numpy as np
-from astropy.table import Table
+from astropy.table import Table, Column
 from astropy.time import Time
 from .exceptions import ConcurrentHarvesting
 
@@ -22,11 +22,18 @@ class HarvestLog:
 
         from . import config
 
+        dtypes = ["<U16", "<U32", "<U32", "<U32", "<U32", int, int, int, int]
         self.data: Table
         if os.path.exists(config.harvest_log_filename):
             self.data = Table.read(
                 config.harvest_log_filename, format=config.harvest_log_format
             )
+            # enforce string field widths
+            for col, dtype in zip(self.data.colnames[:5], dtypes[:5]):
+                if self.data[col].dtype == dtype:
+                    continue
+
+                self.data.replace_column(col, Column(self.data[col].data, dtype=dtype))
         else:
             self.data = Table(
                 names=[
@@ -40,7 +47,7 @@ class HarvestLog:
                     "duplicates",
                     "errors",
                 ],
-                dtype=["<U8", "<U23", "<U23", "<U32", "<U23", int, int, int, int],
+                dtype=dtypes,
             )
 
         if any(self.data["end"] == "processing"):
