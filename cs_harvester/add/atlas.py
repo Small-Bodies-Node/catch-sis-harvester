@@ -138,20 +138,21 @@ def process_collection(
             logger.error(": ".join((str(exc), fn)))
             errors += 1
 
-        if not config.dry_run:
-            try:
-                catch.add_observations(observations)
-            except IntegrityError as exc:
-                logger.error(exc)
-                harvest_log.data[-1]["end"] = "failed"
-                harvest_log.write()
-                raise exc
+    tri.done()
+
+    if not config.dry_run:
+        try:
+            catch.add_observations(observations)
+        except IntegrityError as exc:
+            logger.error(exc)
+            harvest_log.data[-1]["end"] = "failed"
+            harvest_log.write()
+            raise exc
 
     logger.info("%d files processed", tri.i)
     logger.info("%d files added", added)
-    logger.info("%d files already in the database", added)
+    logger.info("%d files already in the database", duplicates)
     logger.info("%d files errored", errors)
-    tri.done()
 
     # update harvest log
     harvest_log.data[-1]["files"] += tri.i
