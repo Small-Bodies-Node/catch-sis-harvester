@@ -3,6 +3,7 @@ from glob import glob
 from typing import Iterator
 import pds4_tools
 from .lidvid import LIDVID
+from .logger import get_logger
 
 
 def labels_from_inventory(
@@ -33,10 +34,18 @@ def labels_from_inventory(
 
     """
 
+    logger = get_logger()
+
     # yield all .xml labels with lidvids in the inventory
     remaining = set(inventory)
     for fn in files:
-        label = pds4_tools.read(fn, quiet=True, lazy_load=True).label
+        try:
+            label = pds4_tools.read(fn, quiet=True, lazy_load=True).label
+        except Exception as exc:
+            msg = str(exc)
+            logger.error("%s", msg + ("" if fn in msg else (":" + fn)))
+            continue
+
         lidvid = str(LIDVID.from_label(label))
         if lidvid in remaining:
             remaining -= set([lidvid])

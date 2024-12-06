@@ -135,7 +135,7 @@ def process_collection(
         try:
             observations.append(process(label, "atlas"))
         except Exception as exc:
-            logger.error(": ".join((str(exc) + fn)))
+            logger.error(": ".join((str(exc), fn)))
             errors += 1
 
         if not config.dry_run:
