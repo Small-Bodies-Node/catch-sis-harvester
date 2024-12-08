@@ -25,6 +25,10 @@ class LIDVID:
     def __repr__(self) -> str:
         return f"<LIDVID: {str(self)}>"
 
+    def __eq__(self, other: str | Self) -> bool:
+        _other = other if isinstance(other, LIDVID) else LIDVID(other)
+        return str(self) == str(other)
+
     @property
     def logical_id(self) -> str:
         return self._lid

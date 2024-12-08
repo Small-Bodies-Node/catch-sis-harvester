@@ -53,7 +53,6 @@ def validated_collections_from_db(db, start, stop):
     able to recover.
 
     """
-
     cursor = db.execute(
         """SELECT * FROM nn
            WHERE current_status = 'validated'
@@ -169,7 +168,13 @@ def process_collection(
 def get_arguments():
     from .. import config
 
-    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser(
+        description=(
+            "The default behavior is to find collections validated since the "
+            "time the last ingested collection was recorded in the database.  "
+        ),
+        epilog="Date parameter formats are YYYY-MM-DD HH:MM:SS.SSS",
+    )
 
     config.add_arguments(parser)
     parser.add_argument(
@@ -179,18 +184,20 @@ def get_arguments():
     )
     mutex = parser.add_mutually_exclusive_group()
     mutex.add_argument(
-        "--since-date", type=Time, help="harvest metadata validated since this date"
+        "--since",
+        type=Time,
+        help="harvest metadata validated since this date and time",
+    )
+    mutex.add_argument(
+        "--before",
+        type=Time,
+        default=Time.now(),
+        help="harvest metadata validated before this date and time",
     )
     mutex.add_argument(
         "--past",
         type=int,
         help="harvest metadata validated in the past SINCE hours",
-    )
-    mutex.add_argument(
-        "--between-dates",
-        type=Time,
-        nargs=2,
-        help="harvest metadata validated between these dates",
     )
     parser.add_argument(
         "--list",
@@ -218,35 +225,50 @@ def main():
 
     try:
         harvest_log = HarvestLog()
+        breakpoint()
     except ConcurrentHarvesting:
         logger.error("Another process has locked the harvest log")
         sys.exit(1)
 
-    start: Time
-    stop: Time = Time.now()
-    if args.between_dates is not None:
-        start = args.between_dates[0]
-        stop = args.between_dates[-1]
-        logger.info(
-            "Checking for collections validated between %s and %s", start.iso, stop.iso
-        )
-    elif args.past is not None:
-        start = Time.now() - args.past * u.hr
+    harvest_log.data.add_row(
+        {
+            "target": "catch",
+            "start": Time.now().iso,
+            "end": "processing",
+            "source": config.source,
+            "time_of_last": "",
+            "files": 0,
+            "added": 0,
+            "errors": 0,
+        }
+    )
+
+    since: Time
+    before: Time = args.before
+    if args.since is None:
+        since = harvest_log.time_of_last()
+
+    if args.past is not None:
+        since = Time.now() - args.past * u.hr
         logger.info(
             "Checking for collections validated in the past %d hr (since %s)",
             args.past,
-            start.iso,
+            since.iso,
         )
-    elif args.since_date:
-        start = args.since_date
-        logger.info("Checking for collections validated since %s", start.iso)
     else:
-        start = harvest_log.time_of_last()
+        logger.info(
+            "Checking for collections validated between %s and %s",
+            since.iso,
+            before.iso,
+        )
 
-    results = validated_collections_from_db(validation_db, start, stop)
+    results = validated_collections_from_db(validation_db, since, before)
     validation_db.close()
 
     if len(results) == 0:
+        harvest_log.data[-1]["end"] = Time.now().iso
+        harvest_log.write()
+
         logger.info("No new data collections found")
         logger.info("Finished")
         return
@@ -261,28 +283,20 @@ def main():
         return
 
     with Catch.with_config(config.catch_config) as catch:
-        harvest_log.data.add_row(
-            {
-                "target": "catch",
-                "start": Time.now().iso,
-                "end": "processing",
-                "source": config.source,
-                "time_of_last": "",
-                "files": 0,
-                "added": 0,
-                "errors": 0,
-            }
-        )
-        harvest_log.write()
-
+        harvest_log.write()  # write "processing" state to the log
         for i, row in enumerate(results):
-            logger.info("%d collections to process.", len(results) - i)
             collection = find_collection(row["location"], row["nn"])
+            n = len(results) - i
 
-            if (args.only_process is not None) and (
-                LIDVID.from_label(collection.label).lid != args.only_process.lid
-            ):
-                continue
+            lidvid = LIDVID.from_label(collection.label)
+            if config.only_process is not None:
+                if lidvid in config.only_process:
+                    # use list of remaining lidvids from command line as the count
+                    n = len(config.only_process)
+                else:
+                    continue
+
+            logger.info("%d collections to process.", n)
 
             process_collection(
                 collection,
@@ -291,6 +305,11 @@ def main():
                 harvest_log,
                 catch,
             )
+
+            if config.only_process is not None:
+                config.only_process.pop(config.only_process.index(lidvid))
+                if len(config.only_process) == 0:
+                    break
 
         logger.info("Processing complete.")
         logger.info("%d files processed", harvest_log.data[-1]["files"])

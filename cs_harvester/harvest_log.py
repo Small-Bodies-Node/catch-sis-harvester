@@ -84,11 +84,17 @@ class HarvestLog:
 
         from . import config
 
-        target = self.data["target"] == config.target
-        source = self.data["source"] == config.source
-
-        if not any(target * source):
+        if len(self.data) == 0:
             return Time(0, format="jd")
 
-        last_run = np.argsort(self.data[target * source]["end"])[-1]
-        return Time(self.data[last_run]["time_of_last"])
+        target = self.data["target"] == config.target
+        source = self.data["source"] == config.source
+        ingested = (self.data["time_of_last"] != "") * (
+            self.data["time_of_last"] != "0"
+        )
+
+        if not any(target * source * ingested):
+            return Time(0, format="jd")
+
+        last_good_run = self.data[target * source * ingested][-1]
+        return Time(last_good_run["time_of_last"])

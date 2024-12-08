@@ -12,7 +12,7 @@ verbose: bool = False
 dry_run: bool = False
 catch_config: CatchConfig = CatchConfig()
 runtime_log_filename: str = ""
-only_process: str | None = None
+only_process: list[str] | None = None
 
 
 def add_arguments(parser):
@@ -34,8 +34,9 @@ def add_arguments(parser):
     parser.add_argument(
         "--only-process",
         type=LIDVID,
-        metavar="LID",
-        help="only process the collection matching this LID",
+        nargs="*",
+        metavar="LIDVID",
+        help="only process the collections matching these LIDVIDs",
     )
 
     parser.add_argument(
