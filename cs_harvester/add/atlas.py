@@ -6,7 +6,7 @@
 * Check this database to identify new collections to harvest.
 * Track harvest runs in a local file.
 * Files are fz compressed.
-* We just want labels with LIDs ending in .fits.
+* We just want labels with LIDs ending in .fits or .diff.
 
 """
 
@@ -26,7 +26,7 @@ from pds4_tools.reader.general_objects import StructureList
 
 from catch import Catch
 from sbsearch.logging import ProgressTriangle
-from sbn_survey_image_service.data.add import add_label
+from sbn_survey_image_service.data.add import add_label as add_label_to_sbnsis
 from sbn_survey_image_service.services.database_provider import data_provider_session
 
 from ..lidvid import LIDVID, collection_version
@@ -94,7 +94,6 @@ def process_collection_for_catch(
     location: str,
     timestamp: str,
     harvest_log: HarvestLog,
-    catch: Catch,
 ):
     from .. import config
 
@@ -144,13 +143,14 @@ def process_collection_for_catch(
     tri.done()
 
     if not config.dry_run:
-        try:
-            catch.add_observations(observations)
-        except IntegrityError as exc:
-            logger.error(exc)
-            harvest_log.data[-1]["end"] = "failed"
-            harvest_log.write()
-            raise exc
+        with Catch.with_config(config.catch_config) as catch:
+            try:
+                catch.add_observations(observations)
+            except IntegrityError as exc:
+                logger.error(exc)
+                harvest_log.data[-1]["end"] = "failed"
+                harvest_log.write()
+                raise exc
 
     logger.info("%d files processed", tri.i)
     logger.info("%d files added", added)
@@ -174,7 +174,6 @@ def process_collection_for_sbnsis(
     location: str,
     timestamp: str,
     harvest_log: HarvestLog,
-    sbnsis: Session,
 ):
     from .. import config
 
@@ -194,7 +193,7 @@ def process_collection_for_sbnsis(
     # identify image labels of interest
     product_lidvids = [LIDVID(row) for row in collection[0].data["LIDVID_LID"]]
     candidate_labels = [
-        lv for lv in product_lidvids if lv.lid.endswith((".fits", ".diff"))
+        str(lv) for lv in product_lidvids if lv.lid.endswith((".fits", ".diff"))
     ]
     try:
         labels = labels_from_inventory(
@@ -210,26 +209,19 @@ def process_collection_for_sbnsis(
     added = 0
     duplicates = 0
     errors = 0
-    observations = []
     tri: ProgressTriangle = ProgressTriangle(1, logger)
-    for fn, label in labels:
-        tri.update()
-        try:
-            observations.append(process(label, "atlas"))
-        except Exception as exc:
-            logger.error(": ".join((str(exc), fn)))
-            errors += 1
+    with data_provider_session() as sbnsis:
+        for fn, label in labels:
+            tri.update()
+            try:
+                success = add_label_to_sbnsis(fn, sbnsis, dry_run=config.dry_run)
+                added += success
+                duplicates += not success
+            except Exception as exc:
+                logger.error(": ".join((str(exc), fn)))
+                errors += 1
 
     tri.done()
-
-    if not config.dry_run:
-        try:
-            catch.add_observations(observations)
-        except IntegrityError as exc:
-            logger.error(exc)
-            harvest_log.data[-1]["end"] = "failed"
-            harvest_log.write()
-            raise exc
 
     logger.info("%d files processed", tri.i)
     logger.info("%d files added", added)
@@ -366,13 +358,6 @@ def main():
         logger.info("Finished")
         return
 
-    catch: Catch
-    sbnsis: Session
-    if config.target == "catch":
-        catch = Catch.with_config(config.catch_config)
-    else:
-        sbnsis = data_provider_session()
-
     harvest_log.write()  # write "processing" state to the log
 
     for i, row in enumerate(results):
@@ -395,7 +380,7 @@ def main():
                 row["location"],
                 Time(row["recorded_at"], format="unix").iso,
                 harvest_log,
-                catch,
+                
             )
         else:
             process_collection_for_sbnsis(
@@ -403,7 +388,7 @@ def main():
                 row["location"],
                 Time(row["recorded_at"], format="unix").iso,
                 harvest_log,
-                sbnsis,
+                
             )
 
         if config.only_process is not None:
