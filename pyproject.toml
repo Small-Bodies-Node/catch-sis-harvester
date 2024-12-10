@@ -4,7 +4,13 @@ description = "Metadata harvesting for the CATCH and SBN Survey Image Service to
 readme = "README.md"
 authors = [{ name = "Michael S. P. Kelley", email = "msk@astro.umd.edu" }]
 license = { text = "BSD 3-Clause License" }
-dependencies = ["numpy", "astropy>=6.1", "catch"]
+dependencies = [
+    "numpy",
+    "astropy>=6.1",
+    "pds4_tools>=1.3",
+    "catch",
+    "sbn_survey_image_service",
+]
 dynamic = ["version"]
 
 [build-system]
