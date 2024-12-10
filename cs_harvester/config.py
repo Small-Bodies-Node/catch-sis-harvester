@@ -10,7 +10,7 @@ source: str = ""
 logger_name: str = "CATCH/SIS Harvester"
 verbose: bool = False
 dry_run: bool = False
-catch_config: CatchConfig = CatchConfig()
+catch_config: CatchConfig | None = None
 runtime_log_filename: str = ""
 only_process: list[str] | None = None
 
@@ -20,7 +20,7 @@ def add_arguments(parser):
 
     parser.add_argument(
         "--catch-config",
-        default="catch.config",
+        default=None,
         type=CatchConfig.from_file,
         help="CATCH configuration file",
     )
