@@ -189,15 +189,15 @@ def get_arguments():
         help="harvest metadata validated since this date and time",
     )
     mutex.add_argument(
+        "--past",
+        type=int,
+        help="harvest metadata validated in the past SINCE hours",
+    )
+    parser.add_argument(
         "--before",
         type=Time,
         default=Time.now(),
         help="harvest metadata validated before this date and time",
-    )
-    mutex.add_argument(
-        "--past",
-        type=int,
-        help="harvest metadata validated in the past SINCE hours",
     )
     parser.add_argument(
         "--list",
@@ -243,23 +243,23 @@ def main():
         }
     )
 
-    since: Time
+    since: Time = args.since
     before: Time = args.before
     if args.since is None:
         since = harvest_log.time_of_last()
 
-    if args.past is not None:
+    if args.past is None:
+        logger.info(
+            "Checking for collections validated between %s and %s",
+            since.iso,
+            before.iso,
+        )
+    else:
         since = Time.now() - args.past * u.hr
         logger.info(
             "Checking for collections validated in the past %d hr (since %s)",
             args.past,
             since.iso,
-        )
-    else:
-        logger.info(
-            "Checking for collections validated between %s and %s",
-            since.iso,
-            before.iso,
         )
 
     results = validated_collections_from_db(validation_db, since, before)
