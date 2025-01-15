@@ -218,7 +218,7 @@ def main():
     from .. import config
 
     config.target = "catch"
-    config.source = "atlas"
+    config.source = "css"
 
     args = get_arguments()
     logger = setup_logger()

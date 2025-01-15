@@ -8,7 +8,7 @@ dependencies = [
     "numpy",
     "astropy>=6.1",
     "pds4_tools>=1.3",
-    "catch",
+    "catch>1.4",
     "sbn_survey_image_service",
 ]
 dynamic = ["version"]
