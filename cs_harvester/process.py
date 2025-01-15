@@ -4,7 +4,6 @@ Get metadata from a label.
 
 import numpy as np
 from astropy.time import Time
-from astropy.coordinates import SkyCoord
 from pds4_tools.reader.label_objects import Label
 
 from catch.model import Observation, Spacewatch
@@ -130,6 +129,8 @@ def process(label: Label, source: str, update: Observation | None = None):
     )
     if maglimit is not None:
         obs.maglimit = float(maglimit.text)
+
+    obs.mjd_added = Time.now().mjd
 
     # survey specific sections here
     if isinstance(obs, ATLAS):
