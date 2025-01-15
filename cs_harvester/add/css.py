@@ -283,7 +283,7 @@ def main():
                 )
 
                 if len(observations) >= 10000:
-                    catch.add_observations(catch, observations)
+                    catch.add_observations(observations)
                     db.commit()
 
                     # update harvest log
@@ -296,7 +296,7 @@ def main():
 
             # add any remaining files
             if len(observations) > 0:
-                catch.add_observations(catch, observations)
+                catch.add_observations(observations)
                 db.commit()
 
             if failed > 0:
