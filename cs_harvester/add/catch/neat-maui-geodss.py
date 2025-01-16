@@ -6,7 +6,7 @@ from astropy.io import fits
 from astropy.wcs import WCS
 import pds3
 
-from catch import Catch
+from catch import Catch, stats
 from catch.model import NEATMauiGEODSS
 from catch.config import Config
 
@@ -90,4 +90,4 @@ with Catch.with_config(Config.from_file(args.config)) as catch:
         if not args.r:
             break
 
-    catch.update_statistics(source="neat_maui_geodss")
+    stats.update_statistics(catch, source="neat_maui_geodss")

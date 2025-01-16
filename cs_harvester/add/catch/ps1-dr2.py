@@ -9,7 +9,7 @@ from astropy.io import fits
 from astropy.wcs import WCS
 
 from sbsearch.logging import ProgressTriangle
-from catch import Catch, Config
+from catch import Catch, Config, stats
 from catch.model import PS1DR2
 
 parser = argparse.ArgumentParser(
@@ -311,4 +311,4 @@ with Catch.with_config(config) as catch:
     # add any remaining files
     catch.add_observations(observations)
     catch.db.create_spatial_index()
-    catch.update_statistics(source="ps1dr2")
+    stats.update_statistics(catch, source="ps1dr2")

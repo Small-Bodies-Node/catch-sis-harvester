@@ -36,7 +36,7 @@ from astropy.time import Time
 from astropy.coordinates import SkyCoord
 from pds4_tools import pds4_read
 
-from catch import Catch, Config
+from catch import Catch, Config, stats
 from catch.model.loneos import LONEOS
 from sbsearch.logging import ProgressTriangle
 
@@ -201,7 +201,7 @@ def main():
 
         if not args.dry_run:
             logger.info("Updating survey statistics.")
-            catch.update_statistics(source="loneos")
+            stats.update_statistics(catch, source="loneos")
 
 
 if __name__ == "__main__":

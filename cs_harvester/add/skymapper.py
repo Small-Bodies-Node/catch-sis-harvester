@@ -7,7 +7,7 @@ import csv
 import numpy as np
 
 from sbsearch.logging import ProgressTriangle
-from catch import Catch
+from catch import Catch, stats
 from catch.model import SkyMapperDR4
 from catch.config import Config
 
@@ -120,6 +120,6 @@ def main():
 
         if not args.noop:
             catch.db.create_spatial_index()
-            catch.update_statistics(source="skymapper_dr4")
+            stats.update_statistics(catch, source="skymapper_dr4")
 
         catch.logger.info(f"Processed %d images.", count)

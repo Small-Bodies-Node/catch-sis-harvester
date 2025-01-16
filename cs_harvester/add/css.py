@@ -23,7 +23,7 @@ import requests
 from astropy.time import Time
 from pds4_tools import pds4_read
 
-from catch import Catch
+from catch import Catch, stats
 from sbsearch.logging import ProgressTriangle
 
 from ..lidvid import LIDVID
@@ -316,7 +316,7 @@ def main():
                     "catalina_lemmon",
                     "catalina_bokneosurvey",
                 ):
-                    catch.update_statistics(source=source)
+                    stats.update_statistics(catch, source=source)
 
 
 if __name__ == "__main__":

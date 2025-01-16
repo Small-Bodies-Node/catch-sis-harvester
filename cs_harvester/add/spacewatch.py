@@ -27,7 +27,7 @@ import argparse
 from sqlalchemy.orm.exc import NoResultFound
 import pds4_tools
 
-from catch import Catch
+from catch import Catch, stats
 from catch.model.spacewatch import Spacewatch
 from sbsearch.logging import ProgressTriangle
 from ..lidvid import LIDVID
@@ -178,4 +178,4 @@ def main():
 
         if not args.dry_run:
             logger.info("Updating survey statistics.")
-            catch.update_statistics(source="spacewatch")
+            stats.update_statistics(catch, source="spacewatch")

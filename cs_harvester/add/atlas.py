@@ -24,7 +24,7 @@ from astropy.time import Time
 import pds4_tools
 from pds4_tools.reader.general_objects import StructureList
 
-from catch import Catch
+from catch import Catch, stats
 from sbsearch.logging import ProgressTriangle
 from sbn_survey_image_service.data.add import add_label as add_label_to_sbnsis
 from sbn_survey_image_service.services.database_provider import data_provider_session
@@ -380,7 +380,6 @@ def main():
                 row["location"],
                 Time(row["recorded_at"], format="unix").iso,
                 harvest_log,
-                
             )
         else:
             process_collection_for_sbnsis(
@@ -388,7 +387,6 @@ def main():
                 row["location"],
                 Time(row["recorded_at"], format="unix").iso,
                 harvest_log,
-                
             )
 
         if config.only_process is not None:
@@ -413,6 +411,6 @@ def main():
             "atlas_rio_hurtado",
             "atlas_sutherland",
         ):
-            catch.update_statistics(source=source)
+            stats.update_statistics(catch, source=source)
 
     logger.info("Finished")
