@@ -188,6 +188,9 @@ def process_collection_for_sbnsis(
 
     logger = get_logger()
 
+    if not os.path.exists(".env"):
+        raise FileNotFoundError("Missing sbnsis .env file")
+
     lidvid = LIDVID.from_label(collection.label)
 
     # Find image products in the data directory
