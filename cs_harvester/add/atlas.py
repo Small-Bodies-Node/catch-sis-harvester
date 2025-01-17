@@ -152,6 +152,15 @@ def process_collection_for_catch(
                 harvest_log.write()
                 raise exc
 
+            logger.info("Updating survey statistics.")
+            for source in (
+                "atlas_mauna_loa",
+                "atlas_haleakela",
+                "atlas_rio_hurtado",
+                "atlas_sutherland",
+            ):
+                stats.update_statistics(catch, source=source)
+
     logger.info("%d files processed", tri.i)
     logger.info("%d files added", added)
     logger.info("%d files already in the database", duplicates)
@@ -413,15 +422,5 @@ def main():
     now.precision = 6
     harvest_log.data[-1]["end"] = now.iso
     harvest_log.write()
-
-    if config.target == "catch" and not config.dry_run:
-        logger.info("Updating survey statistics.")
-        for source in (
-            "atlas_mauna_loa",
-            "atlas_haleakela",
-            "atlas_rio_hurtado",
-            "atlas_sutherland",
-        ):
-            stats.update_statistics(catch, source=source)
 
     logger.info("Finished")
