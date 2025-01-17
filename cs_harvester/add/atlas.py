@@ -331,13 +331,12 @@ def main():
     )
 
     since: Time = args.since
-    since.precision = 6
-
     before: Time = args.before
     before.precision = 6
 
     if args.since is None:
         since = harvest_log.time_of_last()
+    since.precision = 6
 
     if args.past is None:
         logger.info(
