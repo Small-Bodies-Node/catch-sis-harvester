@@ -306,10 +306,12 @@ def main():
         logger.error("Another process has locked the harvest log")
         sys.exit(1)
 
+    now = Time.now()
+    now.precision = 6
     harvest_log.data.add_row(
         {
             "target": config.target,
-            "start": Time.now().iso,
+            "start": now.iso,
             "end": "processing",
             "source": config.source,
             "time_of_last": "",
@@ -320,7 +322,11 @@ def main():
     )
 
     since: Time = args.since
+    since.precision = 6
+
     before: Time = args.before
+    before.precision = 6
+
     if args.since is None:
         since = harvest_log.time_of_last()
 
@@ -332,6 +338,7 @@ def main():
         )
     else:
         since = Time.now() - args.past * u.hr
+        since.precision = 6
         logger.info(
             "Checking for collections validated in the past %d hr (since %s)",
             args.past,
@@ -342,7 +349,9 @@ def main():
     validation_db.close()
 
     if len(results) == 0:
-        harvest_log.data[-1]["end"] = Time.now().iso
+        now = Time.now()
+        now.precision = 6
+        harvest_log.data[-1]["end"] = now.iso
         harvest_log.write()
 
         logger.info("No new data collections found")
@@ -378,14 +387,14 @@ def main():
             process_collection_for_catch(
                 collection,
                 row["location"],
-                Time(row["recorded_at"], format="unix").iso,
+                Time(row["recorded_at"], format="unix", precision=6).iso,
                 harvest_log,
             )
         else:
             process_collection_for_sbnsis(
                 collection,
                 row["location"],
-                Time(row["recorded_at"], format="unix").iso,
+                Time(row["recorded_at"], format="unix", precision=6).iso,
                 harvest_log,
             )
 
@@ -400,7 +409,9 @@ def main():
     logger.info("%d files already in the database", harvest_log.data[-1]["duplicates"])
     logger.info("%d files errored", harvest_log.data[-1]["errors"])
 
-    harvest_log.data[-1]["end"] = Time.now().iso
+    now = Time.now()
+    now.precision = 6
+    harvest_log.data[-1]["end"] = now.iso
     harvest_log.write()
 
     if config.target == "catch" and not config.dry_run:

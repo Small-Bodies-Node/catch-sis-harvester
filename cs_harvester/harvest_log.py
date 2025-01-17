@@ -94,7 +94,7 @@ class HarvestLog:
         )
 
         if not any(target * source * ingested):
-            return Time(0, format="jd")
+            return Time(0, format="jd", precision=6)
 
         last_good_run = self.data[target * source * ingested][-1]
-        return Time(last_good_run["time_of_last"])
+        return Time(last_good_run["time_of_last"], precision=6)
