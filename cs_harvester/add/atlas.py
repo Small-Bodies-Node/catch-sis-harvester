@@ -94,8 +94,8 @@ def find_collection(location: str, night_number: int) -> StructureList:
 def get_observation(catch, label) -> ATLAS:
     lid = label.find("Identification_Area/logical_identifier").text
     for site in (ATLASHaleakela, ATLASMaunaLoa, ATLASRioHurtado, ATLASSutherland):
-        obs = catch.db.session.query().filter(site.product_id == lid).one()
-        if obs:
+        obs = catch.db.session.query(site).filter(site.product_id == lid).one_or_none()
+        if obs is not None:
             return obs
     return None
 
