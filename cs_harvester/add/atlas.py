@@ -92,12 +92,21 @@ def find_collection(location: str, night_number: int) -> StructureList:
 
 
 def get_observation(catch, label) -> ATLAS:
-    lid = label.find("Identification_Area/logical_identifier").text
-    for site in (ATLASHaleakela, ATLASMaunaLoa, ATLASRioHurtado, ATLASSutherland):
-        obs = catch.db.session.query(site).filter(site.product_id == lid).one_or_none()
-        if obs is not None:
-            return obs
-    return None
+    lidvid = LIDVID.from_label(label)
+
+    match lidvid.product_id[:2]:
+        case "01":
+            cls = ATLASMaunaLoa
+        case "02":
+            cls = ATLASHaleakela
+        case "03":
+            cls = ATLASSutherland
+        case "04":
+            cls = ATLASRioHurtado
+        case _:
+            cls = None
+
+    return catch.db.session.query(cls).filter(cls.product_id == lidvid.lid).one_or_none()
 
 
 def process_collection_for_catch(
@@ -152,6 +161,7 @@ def process_collection_for_catch(
                 if update:
                     try:
                         obs = get_observation(catch, label)
+                        duplicates += 1
                     except NoResultFound:
                         # then just add it
                         pass
@@ -179,6 +189,7 @@ def process_collection_for_catch(
         if not config.dry_run:
             try:
                 add_or_update(catch, observations)
+                added += 1
             except IntegrityError as exc:
                 logger.error(exc)
                 harvest_log.data[-1]["end"] = "failed"
