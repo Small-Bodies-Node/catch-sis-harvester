@@ -139,44 +139,44 @@ def process_collection_for_catch(
         raise exc
 
     # harvest metadata
-    added = 0
-    duplicates = 0
-    errors = 0
-    observations = []
-    tri: ProgressTriangle = ProgressTriangle(1, logger)
-    for fn, label in labels:
-        tri.update()
-        try:
-            obs = None
-            if update:
-                try:
-                    obs = get_observation(catch, label)
-                except NoResultFound:
-                    # then just add it
-                    pass
+    with Catch.with_config(config.catch_config) as catch:
+        added = 0
+        duplicates = 0
+        errors = 0
+        observations = []
+        tri: ProgressTriangle = ProgressTriangle(1, logger)
+        for fn, label in labels:
+            tri.update()
+            try:
+                obs = None
+                if update:
+                    try:
+                        obs = get_observation(catch, label)
+                    except NoResultFound:
+                        # then just add it
+                        pass
 
-            observations.append(process(label, "atlas", obs))
-        except Exception as exc:
-            logger.error(": ".join((str(exc), fn)))
-            errors += 1
+                observations.append(process(label, "atlas", obs))
+            except Exception as exc:
+                logger.error(": ".join((str(exc), fn)))
+                errors += 1
 
-    tri.done()
+        tri.done()
 
-    def add_or_update(catch, observations):
-        try:
-            if update:
-                catch.update_observations(observations)
-            else:
-                catch.add_observations(observations)
-        except:
-            logger.error(
-                "A fatal error occurred saving data to the database.",
-                exc_info=True,
-            )
-            raise
+        def add_or_update(catch, observations):
+            try:
+                if update:
+                    catch.update_observations(observations)
+                else:
+                    catch.add_observations(observations)
+            except:
+                logger.error(
+                    "A fatal error occurred saving data to the database.",
+                    exc_info=True,
+                )
+                raise
 
-    if not config.dry_run:
-        with Catch.with_config(config.catch_config) as catch:
+        if not config.dry_run:
             try:
                 add_or_update(catch, observations)
             except IntegrityError as exc:
