@@ -252,6 +252,14 @@ def process_collection_for_sbnsis(
     harvest_log.write()
 
 
+def time_string_or_float(t: str) -> Time:
+    """Parse a command-line argument as a calendar date or UNIX timestamp."""
+    try:
+        return Time(float(t), format="unix")
+    except (ValueError):
+        return Time(t)
+
+
 def get_arguments():
     from .. import config
 
@@ -260,7 +268,7 @@ def get_arguments():
             "The default behavior is to find collections validated since the "
             "time the last ingested collection was recorded in the database.  "
         ),
-        epilog="Date parameter formats are YYYY-MM-DD HH:MM:SS.SSS",
+        epilog="Date parameter formats are YYYY-MM-DD HH:MM:SS.SSS or Unix timestamp.",
     )
 
     parser.add_argument("target", choices=("catch", "sbnsis"))
@@ -274,7 +282,7 @@ def get_arguments():
     mutex = parser.add_mutually_exclusive_group()
     mutex.add_argument(
         "--since",
-        type=Time,
+        type=time_string_or_float,
         help="harvest metadata validated since this date and time",
     )
     mutex.add_argument(
@@ -284,7 +292,7 @@ def get_arguments():
     )
     parser.add_argument(
         "--before",
-        type=Time,
+        type=time_string_or_float,
         default=Time.now(),
         help="harvest metadata validated before this date and time",
     )
