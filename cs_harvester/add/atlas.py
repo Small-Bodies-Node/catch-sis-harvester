@@ -162,7 +162,7 @@ def process_collection_for_catch(
 
     tri.done()
 
-    def add_or_update(observations):
+    def add_or_update(catch, observations):
         try:
             if update:
                 catch.update_observations(observations)
@@ -178,7 +178,7 @@ def process_collection_for_catch(
     if not config.dry_run:
         with Catch.with_config(config.catch_config) as catch:
             try:
-                add_or_update(observations)
+                add_or_update(catch, observations)
             except IntegrityError as exc:
                 logger.error(exc)
                 harvest_log.data[-1]["end"] = "failed"
