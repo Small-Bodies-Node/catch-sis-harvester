@@ -36,7 +36,7 @@ def process(label: Label, source: str, update: Observation | None = None):
         The expected data source for this label.
 
     update : Observation, optional
-        If ``True``, then this observation is updated and returned.
+        If defined, then this observation is updated and returned.
 
 
     Returns

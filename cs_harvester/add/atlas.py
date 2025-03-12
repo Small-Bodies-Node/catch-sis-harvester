@@ -19,12 +19,14 @@ from packaging.version import Version
 
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
+from sqlalchemy.orm.exc import NoResultFound
 import astropy.units as u
 from astropy.time import Time
 import pds4_tools
 from pds4_tools.reader.general_objects import StructureList
 
 from catch import Catch, stats
+from catch.model.atlas import (ATLAS, ATLASMaunaLoa, ATLASHaleakela, ATLASRioHurtado, ATLASSutherland)
 from sbsearch.logging import ProgressTriangle
 from sbn_survey_image_service.data.add import add_label as add_label_to_sbnsis
 from sbn_survey_image_service.services.database_provider import data_provider_session
@@ -89,11 +91,21 @@ def find_collection(location: str, night_number: int) -> StructureList:
     return latest_collection(files)
 
 
+def get_observation(catch, label) -> ATLAS:
+    lid = label.find("Identification_Area/logical_identifier").text
+    for site in (ATLASHaleakela, ATLASMaunaLoa, ATLASRioHurtado, ATLASSutherland):
+        obs = catch.db.session.query().filter(site.product_id == lid).one()
+        if obs:
+            return obs
+    return None
+
+
 def process_collection_for_catch(
     collection: StructureList,
     location: str,
     timestamp: str,
     harvest_log: HarvestLog,
+    update: bool,
 ):
     from .. import config
 
@@ -135,17 +147,38 @@ def process_collection_for_catch(
     for fn, label in labels:
         tri.update()
         try:
-            observations.append(process(label, "atlas"))
+            obs = None
+            if update:
+                try:
+                    obs = get_observation(catch, label)
+                except NoResultFound:
+                    # then just add it
+                    pass
+
+            observations.append(process(label, "atlas", obs))
         except Exception as exc:
             logger.error(": ".join((str(exc), fn)))
             errors += 1
 
     tri.done()
 
+    def add_or_update(observations):
+        try:
+            if update:
+                catch.update_observations(observations)
+            else:
+                catch.add_observations(observations)
+        except:
+            logger.error(
+                "A fatal error occurred saving data to the database.",
+                exc_info=True,
+            )
+            raise
+
     if not config.dry_run:
         with Catch.with_config(config.catch_config) as catch:
             try:
-                catch.add_observations(observations)
+                add_or_update(observations)
             except IntegrityError as exc:
                 logger.error(exc)
                 harvest_log.data[-1]["end"] = "failed"
@@ -302,6 +335,12 @@ def get_arguments():
         help="only list the collections that would be ingested",
     )
 
+    parser.add_argument(
+        "--update",
+        action="store_true",
+        help="update database with label metadata when there are conflicts",
+    )
+
     args = parser.parse_args()
 
     config.with_args(args)
@@ -408,6 +447,7 @@ def main():
                 row["location"],
                 Time(row["recorded_at"], format="unix", precision=6).iso,
                 harvest_log,
+                args.update,
             )
         else:
             process_collection_for_sbnsis(
