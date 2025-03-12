@@ -174,11 +174,13 @@ def process_collection_for_catch(
         tri.done()
 
         def add_or_update(catch, observations):
+            added = 0
             try:
                 if update:
                     catch.update_observations(observations)
                 else:
                     catch.add_observations(observations)
+                added += 1
             except:
                 logger.error(
                     "A fatal error occurred saving data to the database.",
@@ -186,10 +188,11 @@ def process_collection_for_catch(
                 )
                 raise
 
+            return added
+
         if not config.dry_run:
             try:
-                add_or_update(catch, observations)
-                added += 1
+                added = add_or_update(catch, observations)
             except IntegrityError as exc:
                 logger.error(exc)
                 harvest_log.data[-1]["end"] = "failed"
