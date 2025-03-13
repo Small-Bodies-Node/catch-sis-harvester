@@ -59,13 +59,15 @@ def validated_collections_from_db(db, start, stop):
     able to recover.
 
     """
+
+    # we're having an issue with rounding error, so add a ms to start
     cursor = db.execute(
         """SELECT * FROM nn
            WHERE current_status = 'validated'
              AND recorded_at > ? AND recorded_at < ?
            ORDER BY recorded_at
         """,
-        (start.unix, stop.unix),
+        (start.unix + 1e-3, stop.unix),
     )
     return list(cursor.fetchall())
 
