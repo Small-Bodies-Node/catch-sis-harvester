@@ -197,7 +197,7 @@ def new_labels(db, listfile):
                     continue
                 calibrated_count += 1
                 path = line.strip()
-                path = path[line.find("gbo.ast.catalina.survey") :]
+                path = path[line.find("gbo.ast.catalina.survey") :]  # noqa E203
                 processed = db.execute(
                     "SELECT TRUE FROM labels WHERE path = ?", (path,)
                 ).fetchone()
