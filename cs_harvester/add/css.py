@@ -263,7 +263,7 @@ def main():
                     failed += 1
                     harvest_log[-1]["errored"] += 1
                     msg = str(e)
-                except:
+                except Exception:
                     logger.error(
                         "A fatal error occurred processing %s",
                         path,
