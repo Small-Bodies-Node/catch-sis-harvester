@@ -26,7 +26,6 @@ from pds4_tools import pds4_read
 from catch import Catch, stats
 from sbsearch.logging import ProgressTriangle
 
-from ..lidvid import LIDVID
 from ..logger import get_logger, setup_logger
 from ..harvest_log import HarvestLog
 from ..exceptions import ConcurrentHarvesting
