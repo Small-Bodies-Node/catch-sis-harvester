@@ -28,7 +28,7 @@ from sbsearch.logging import ProgressTriangle
 
 from ..logger import get_logger, setup_logger
 from ..harvest_log import HarvestLog
-from ..exceptions import ConcurrentHarvesting
+from ..exceptions import ConcurrentHarvesting, LabelError
 from ..process import process
 
 # URL for the latest list of all files.
@@ -161,7 +161,7 @@ def read_label(path):
             attempts += 1
             sleep(1)  # retry, but not too soon
     else:
-        raise e
+        raise LabelError("3 failed attempts reading " + url)
 
     return label
 
