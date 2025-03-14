@@ -19,18 +19,17 @@ import gzip
 from datetime import datetime
 from contextlib import contextmanager
 
-import requests
 from astropy.time import Time
 from pds4_tools import pds4_read
 
 from catch import Catch, stats
 from sbsearch.logging import ProgressTriangle
 
-from ..lidvid import LIDVID
 from ..logger import get_logger, setup_logger
 from ..harvest_log import HarvestLog
-from ..exceptions import ConcurrentHarvesting
+from ..exceptions import ConcurrentHarvesting, LabelError
 from ..process import process
+from .. import network
 
 # URL for the latest list of all files.
 LATEST_FILES = (
@@ -106,7 +105,10 @@ def sync_list():
     if os.path.exists(local_filename):
         # file exists, check for an update
         last_sync = datetime.fromtimestamp(os.stat(local_filename).st_mtime)
-        response = requests.head(LATEST_FILES)
+
+        with network.session() as session:
+            response = session.head(LATEST_FILES)
+
         logger.info(
             "Previous file list downloaded %s", last_sync.strftime("%Y-%m-%d %H:%M")
         )
@@ -126,23 +128,26 @@ def sync_list():
         sync = True
 
     if sync:
-        with requests.get(LATEST_FILES, stream=True) as r:
-            r.raise_for_status()
-            with open(local_filename, "wb") as f:
-                for chunk in r.iter_content(chunk_size=8192):
-                    f.write(chunk)
-            logger.info("Downloaded file list.")
+        with network.session() as session:
+            with session.get(LATEST_FILES, stream=True) as response:
+                response.raise_for_status()
+                with open(local_filename, "wb") as f:
+                    for chunk in response.iter_content(chunk_size=8192):
+                        f.write(chunk)
+                logger.info("Downloaded file list.")
 
-            stat = os.stat(local_filename)
-            file_date = Time(stat.st_mtime, format="unix")
-            logger.info(f"  Size: {stat.st_size / 1048576:.2f} MiB")
-            logger.info(f"  Last modified: {file_date.iso}")
+                stat = os.stat(local_filename)
+                file_date = Time(stat.st_mtime, format="unix")
+                logger.info(f"  Size: {stat.st_size / 1048576:.2f} MiB")
+                logger.info(f"  Last modified: {file_date.iso}")
 
-            backup_file = local_filename.replace(
-                ".txt.gz",
-                "-" + file_date.isot[:16].replace("-", "").replace(":", "") + ".txt.gz",
-            )
-            os.system(f"cp {local_filename} {backup_file}")
+                backup_file = local_filename.replace(
+                    ".txt.gz",
+                    "-"
+                    + file_date.isot[:16].replace("-", "").replace(":", "")
+                    + ".txt.gz",
+                )
+                os.system(f"cp {local_filename} {backup_file}")
 
     return local_filename
 
@@ -155,14 +160,15 @@ def read_label(path):
     # address timeout error by retrying with a delay
     while attempts < 4:
         try:
-            label = pds4_read(url, lazy_load=True, quiet=True).label
+            with network.set_astropy_useragent():
+                label = pds4_read(url, lazy_load=True, quiet=True).label
             break
         except urllib.error.URLError as e:
             logger.error(str(e))
             attempts += 1
             sleep(1)  # retry, but not too soon
     else:
-        raise e
+        raise LabelError("3 failed attempts reading " + url)
 
     return label
 
@@ -198,7 +204,7 @@ def new_labels(db, listfile):
                     continue
                 calibrated_count += 1
                 path = line.strip()
-                path = path[line.find("gbo.ast.catalina.survey") :]
+                path = path[line.find("gbo.ast.catalina.survey") :]  # noqa E203
                 processed = db.execute(
                     "SELECT TRUE FROM labels WHERE path = ?", (path,)
                 ).fetchone()
@@ -264,7 +270,7 @@ def main():
                     failed += 1
                     harvest_log[-1]["errored"] += 1
                     msg = str(e)
-                except:
+                except Exception:
                     logger.error(
                         "A fatal error occurred processing %s",
                         path,

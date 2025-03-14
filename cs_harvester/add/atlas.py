@@ -18,7 +18,6 @@ from glob import glob
 from packaging.version import Version
 
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import Session
 from sqlalchemy.orm.exc import NoResultFound
 import astropy.units as u
 from astropy.time import Time
@@ -26,7 +25,13 @@ import pds4_tools
 from pds4_tools.reader.general_objects import StructureList
 
 from catch import Catch, stats
-from catch.model.atlas import (ATLAS, ATLASMaunaLoa, ATLASHaleakela, ATLASRioHurtado, ATLASSutherland)
+from catch.model.atlas import (
+    ATLAS,
+    ATLASMaunaLoa,
+    ATLASHaleakela,
+    ATLASRioHurtado,
+    ATLASSutherland,
+)
 from sbsearch.logging import ProgressTriangle
 from sbn_survey_image_service.data.add import add_label as add_label_to_sbnsis
 from sbn_survey_image_service.services.database_provider import data_provider_session
@@ -108,7 +113,9 @@ def get_observation(catch, label) -> ATLAS:
         case _:
             cls = None
 
-    return catch.db.session.query(cls).filter(cls.product_id == lidvid.lid).one_or_none()
+    return (
+        catch.db.session.query(cls).filter(cls.product_id == lidvid.lid).one_or_none()
+    )
 
 
 def process_collection_for_catch(
@@ -181,7 +188,7 @@ def process_collection_for_catch(
                     catch.update_observations(observations)
                 else:
                     catch.add_observations(observations)
-            except:
+            except Exception:
                 logger.error(
                     "A fatal error occurred saving data to the database.",
                     exc_info=True,
@@ -302,7 +309,7 @@ def time_string_or_float(t: str) -> Time:
     """Parse a command-line argument as a calendar date or UNIX timestamp."""
     try:
         return Time(float(t), format="unix")
-    except (ValueError):
+    except ValueError:
         return Time(t)
 
 
