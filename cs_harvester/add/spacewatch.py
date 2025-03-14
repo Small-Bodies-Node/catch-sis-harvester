@@ -34,6 +34,7 @@ from ..lidvid import LIDVID
 from ..logger import setup_logger
 from ..collection import labels_from_inventory, case_insensitive_find_xml_file
 from ..process import process
+from .. import network
 
 
 def get_observation(catch, label) -> Spacewatch:
@@ -83,7 +84,9 @@ def main():
     args = get_arguments()
     logger = setup_logger()
 
-    collection = pds4_tools.read(args.collection, quiet=True, lazy_load=True)
+    with network.set_astropy_useragent():
+        collection = pds4_tools.read(args.collection, quiet=True, lazy_load=True)
+
     lidvid = LIDVID.from_label(collection.label)
     logger.info("Processing collection %s", lidvid)
     if args.vid is not None:
@@ -123,7 +126,7 @@ def main():
                 catch.update_observations(observations)
             else:
                 catch.add_observations(observations)
-        except:
+        except Exception:
             logger.error(
                 "A fatal error occurred saving data to the database.",
                 exc_info=True,
@@ -154,7 +157,7 @@ def main():
             except ValueError as e:
                 failed += 1
                 msg = str(e)
-            except:
+            except Exception:
                 logger.error("A fatal error occurred processing %s", fn, exc_info=True)
                 raise
 

@@ -1,5 +1,4 @@
 import os
-import numpy as np
 from astropy.table import Table, Column
 from astropy.time import Time
 from .exceptions import ConcurrentHarvesting
