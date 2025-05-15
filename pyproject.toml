@@ -10,6 +10,7 @@ dependencies = [
     "pds4_tools>=1.3",
     "catch>1.4",
     "sbn_survey_image_service",
+    "lxml",
 ]
 dynamic = ["version"]
 
