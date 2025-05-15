@@ -34,7 +34,7 @@ from catch.model.spacewatch import Spacewatch
 from sbsearch.logging import ProgressTriangle
 from ..lidvid import LIDVID
 from ..logger import setup_logger, get_logger
-from ..collection import labels_from_inventory, case_insensitive_find_xml_file
+from ..collection import labels_from_inventory
 from ..process import process
 from .. import network
 
