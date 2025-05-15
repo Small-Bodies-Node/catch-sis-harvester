@@ -133,26 +133,22 @@ def get_inventory(args) -> list[str]:
 
 def get_labels(url, doc):
     """Find XML label URLs in this HTML document."""
-    rows = doc.findall(".//table/tr")
+    anchors = doc.findall(".//a")
 
-    if len(rows) == 0:
+    if len(anchors) == 0:
         raise ValueError("got 0 table rows")
 
     labels = []
-    for row in rows:
-        if row[0].tag == "th":
-            continue
-
-        try:
-            a = row[1][0]
-        except IndexError:
-            continue
-
-        href = a.get("href")
-        if href.endswith(".xml"):
+    for anchor in anchors:
+        href = anchor.get("href")
+        if (
+            anchor.text
+            and anchor.text.strip().endswith(".xml")
+            and href.endswith(".xml")
+        ):
             with network.set_astropy_useragent():
                 label_url = urljoin(url, href)
-                labels.append(pds4_tools.pds4_read(label_url))
+                labels.append(pds4_tools.pds4_read(label_url).label)
 
     return labels
 
