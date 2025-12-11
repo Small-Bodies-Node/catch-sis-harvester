@@ -158,7 +158,7 @@ def read_label(path):
 
     attempts = 0
     # address timeout error by retrying with a delay
-    while attempts < 4:
+    while attempts < 6:
         try:
             with network.set_astropy_useragent():
                 label = pds4_read(url, lazy_load=True, quiet=True).label
@@ -166,9 +166,9 @@ def read_label(path):
         except urllib.error.URLError as e:
             logger.error(str(e))
             attempts += 1
-            sleep(1)  # retry, but not too soon
+            sleep(3)  # retry, but not too soon
     else:
-        raise LabelError("3 failed attempts reading " + url)
+        raise LabelError("5 failed attempts reading " + url)
 
     return label
 
