@@ -90,6 +90,11 @@ def latest_collection(files):
             latest = struct
             max_version = version
 
+    if latest is None:
+        raise ValueError(
+            "None of the following files are versioned collection labels: \n  ",
+            "\n  ".join(files),
+        )
     return latest
 
 
