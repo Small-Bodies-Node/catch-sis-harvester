@@ -92,8 +92,9 @@ def latest_collection(files):
 
     if latest is None:
         raise ValueError(
-            "None of the following files are versioned collection labels: \n  ",
-            "\n  ".join(files),
+            "None of the following files are versioned collection labels: {}".format(
+                str(files)
+            )
         )
     return latest
 
