@@ -90,12 +90,25 @@ def latest_collection(files):
             latest = struct
             max_version = version
 
+    if latest is None:
+        raise ValueError(
+            "None of the following files are versioned collection labels: {}".format(
+                str(files)
+            )
+        )
     return latest
 
 
 def find_collection(location: str, night_number: int) -> StructureList:
-    files = glob(f"/n/{location}/collection_{night_number}*.xml")
-    return latest_collection(files)
+    try:
+        files = glob(f"/n/{location}/collection_{night_number}*.xml")
+        return latest_collection(files)
+    except ValueError as exc:
+        raise ValueError(
+            "Could not find collection for location {}, night number {}".format(
+                location, night_number
+            )
+        )
 
 
 def get_observation(catch, label) -> ATLAS:
