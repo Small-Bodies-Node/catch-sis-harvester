@@ -157,7 +157,7 @@ def read_label(path):
     url = "".join((ARCHIVE_PREFIX, path))
 
     attempts = 0
-    # address timeout error by retrying with a delay
+    # address timeout error by retrying with increasingly larger delays
     while attempts < 6:
         try:
             with network.set_astropy_useragent():
@@ -166,7 +166,7 @@ def read_label(path):
         except urllib.error.URLError as e:
             logger.error(str(e))
             attempts += 1
-            sleep(3)  # retry, but not too soon
+            sleep(3 + 2**attempts)  # retry, but not too soon
     else:
         raise LabelError("5 failed attempts reading " + url)
 
