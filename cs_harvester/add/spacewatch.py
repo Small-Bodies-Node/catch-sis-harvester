@@ -22,21 +22,27 @@ gbo.ast.spacewatch.survey/data/collection_gbo.ast.spacewatch.survey_data_invento
 """
 
 import os
+import sys
 import argparse
+from tempfile import TemporaryDirectory
 from urllib.parse import urljoin
 import lxml.html
 
-from sqlalchemy.orm.exc import NoResultFound
+from astropy.time import Time
 import pds4_tools
 
 from catch import Catch, stats
 from catch.model.spacewatch import Spacewatch
 from sbsearch.logging import ProgressTriangle
+from sbn_survey_image_service.data.add import add_label
+from sbn_survey_image_service.services.database_provider import data_provider_session
+
+from ..collection import labels_from_inventory, case_insensitive_find_xml_file
+from .. import network
+from ..exceptions import ConcurrentHarvesting
+from ..harvest_log import HarvestLog
 from ..lidvid import LIDVID
 from ..logger import setup_logger, get_logger
-from ..collection import labels_from_inventory, case_insensitive_find_xml_file
-from ..process import process
-from .. import network
 
 ARCHIVE_BASE_URL = "https://sbnarchive.psi.edu/pds4/surveys/gbo.ast.spacewatch.survey/"
 
@@ -54,7 +60,7 @@ def get_arguments():
 
     parser.add_argument(
         "--target",
-        choices=("catch", "sbnsis"),
+        choices=("sbnsis"),
         action="append",
         required="true",
         help="target database; specify at least one",
@@ -93,8 +99,7 @@ def get_inventory(args) -> list[str]:
 
     logger = get_logger()
 
-    with network.set_astropy_useragent():
-        collection = pds4_tools.read(args.collection, quiet=True, lazy_load=True)
+    collection = pds4_tools.read(args.collection, quiet=True, lazy_load=True)
 
     lidvid = LIDVID.from_label(collection.label)
     logger.info("Processing collection %s", lidvid)
@@ -131,8 +136,32 @@ def get_inventory(args) -> list[str]:
     return inventory
 
 
-def get_labels(url, doc):
-    """Find XML label URLs in this HTML document."""
+def get_labels(url: str, doc: lxml.html.HtmlElement, path: str) -> list[str]:
+    """Download all XML label URLs linked in this HTML document's table.
+
+
+    Parameters
+    ----------
+
+    url : str
+        The base URL for the label locations.
+
+    doc : lxml.html.HtmlElement
+        The document that contains links to the labels.  It is assumed that the
+        labels are in the second column of a table and that the anchor tag is
+        the first child of the table cell.
+
+    path : str
+        The local directory to which to save the labels.
+
+
+    Returns
+    -------
+    label_files : list[str]
+        The full path to the downloaded label files.
+
+    """
+
     rows = doc.findall(".//table/tr")
 
     if len(rows) == 0:
@@ -150,9 +179,10 @@ def get_labels(url, doc):
 
         href = a.get("href")
         if href.endswith(".xml"):
-            with network.set_astropy_useragent():
-                label_url = urljoin(url, href)
-                labels.append(pds4_tools.pds4_read(label_url))
+            label_url = urljoin(url, href)
+            fn = network.download_file(label_url)
+            os.rename(fn, os.path.join(path, os.path.basename(fn)))
+            labels.append(fn)
 
     return labels
 
@@ -174,95 +204,21 @@ def process_date(inventory, date, targets):
         response.raise_for_status()
         index = lxml.html.document_fromstring(response.content)
 
-    labels = []
-    for label in get_labels(url, index):
-        lidvid = LIDVID.from_label(label)
-        if str(lidvid) not in inventory:
-            breakpoint()
-
-        breakpoint()
-
-    for target in targets:
-        if target == "catch":
-            add_to_catch(labels)
-        elif target == "sbnsis":
-            add_to_sbnsis(labels)
-
-
-def add_to_catch(labels):
-    from .. import config
-
-    logger = get_logger()
-
-    config.source = "catch"
-
-    raise NotImplementedError
-
-    def add_or_update(observations):
-        try:
-            if args.update:
-                catch.update_observations(observations)
+    with TemporaryDirectory() as tempd:
+        files = []
+        for fn in get_labels(url, index, tempd):
+            lidvid = LIDVID.from_label(pds4_tools.pds4_read(fn))
+            if str(lidvid) in inventory:
+                files.append(fn)
             else:
-                catch.add_observations(observations)
-        except Exception:
-            logger.error(
-                "A fatal error occurred saving data to the database.",
-                exc_info=True,
-            )
-            raise
+                logger.debug(f"Skipping {str(lidvid)}")
 
-    with Catch.with_config(config.catch_config) as catch:
-        observations = []
-        failed = 0
-
-        tri = ProgressTriangle(1, logger=logger, base=2)
-        for fn, label in labels_from_inventory(inventory, files):
-            tri.update()
-            logger.debug("(%d) %s", tri.i, fn)
-
-            obs = None
-            if args.update:
-                try:
-                    obs = get_observation(catch, label)
-                except NoResultFound:
-                    # then just add it
-                    pass
-
-            try:
-                obs = process(label, config.source, obs)
-                observations.append(obs)
-                msg = "updating" if args.update else "adding"
-            except ValueError as e:
-                failed += 1
-                msg = str(e)
-            except Exception:
-                logger.error("A fatal error occurred processing %s", fn, exc_info=True)
-                raise
-
-            logger.debug("... %s", msg)
-
-            if config.dry_run:
-                continue
-
-            if len(observations) >= 8192:
-                add_or_update(observations)
-                observations = []
-
-        # add any remaining files
-        if not config.dry_run and (len(observations) > 0):
-            add_or_update(observations)
-
-        logger.info("%d files processed.", tri.i)
-
-        if failed > 0:
-            logger.warning("Failed processing %d files", failed)
-
-        if not args.dry_run:
-            logger.info("Updating survey statistics.")
-            stats.update_statistics(catch, source="spacewatch")
+        for target in targets:
+            if target == "sbnsis":
+                add_to_sbnsis(files)
 
 
-def add_to_sbnsis(labels):
+def add_to_sbnsis(files):
     from .. import config
 
     logger = get_logger()
@@ -272,6 +228,46 @@ def add_to_sbnsis(labels):
     if not os.path.exists(".env"):
         raise FileNotFoundError("Missing sbnsis .env file")
 
+    try:
+        harvest_log = HarvestLog()
+    except ConcurrentHarvesting:
+        logger.error("Another process has locked the harvest log")
+        sys.exit(1)
+
+    # harvest metadata
+    added = 0
+    duplicates = 0
+    errors = 0
+    tri: ProgressTriangle = ProgressTriangle(1, logger)
+    with data_provider_session() as sbnsis:
+        for fn in files:
+            tri.update()
+            try:
+                success = add_label(fn, sbnsis, dry_run=config.dry_run)
+                added += success
+                duplicates += not success
+            except Exception as exc:
+                logger.error(": ".join((str(exc), fn)))
+                errors += 1
+
+    tri.done()
+
+    logger.info("%d files processed", tri.i)
+    logger.info("%d files added", added)
+    logger.info("%d files already in the database", duplicates)
+    logger.info("%d files errored", errors)
+
+    # update harvest log
+    harvest_log.data[-1]["files"] += tri.i
+    harvest_log.data[-1]["added"] += added
+    harvest_log.data[-1]["duplicates"] += duplicates
+    harvest_log.data[-1]["errors"] += errors
+    harvest_log.data[-1]["time_of_last"] = max(
+        harvest_log.data[-1]["time_of_last"],
+        Time.now().iso,
+    )
+    harvest_log.write()
+
 
 def main():
     from .. import config
@@ -279,7 +275,7 @@ def main():
     config.source = "spacewatch"
 
     args = get_arguments()
-    logger = setup_logger()
+    setup_logger()
 
     inventory = get_inventory(args)
 
