@@ -5,11 +5,11 @@ readme = "README.md"
 authors = [{ name = "Michael S. P. Kelley", email = "msk@astro.umd.edu" }]
 license = { text = "BSD 3-Clause License" }
 dependencies = [
-    "numpy",
-    "astropy>=6.1",
+    "numpy>=2.0",
+    "astropy>=7.1.2",
     "pds4_tools>=1.3",
-    "catch>1.4",
-    "sbn_survey_image_service",
+    "catch>=2.1",
+    "sbn_survey_image_service>=0.7",
     "lxml",
 ]
 dynamic = ["version"]
