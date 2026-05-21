@@ -9,9 +9,7 @@ harvesting.
 import os
 import re
 import sys
-from time import sleep
 import email
-import urllib
 import argparse
 import logging
 import sqlite3
@@ -153,22 +151,11 @@ def sync_list():
 
 
 def read_label(path):
-    logger = get_logger()
     url = "".join((ARCHIVE_PREFIX, path))
 
-    attempts = 0
-    # address timeout error by retrying with increasingly larger delays
-    while attempts < 6:
-        try:
-            with network.set_astropy_useragent():
-                label = pds4_read(url, lazy_load=True, quiet=True).label
-            break
-        except urllib.error.URLError as e:
-            logger.error(str(e))
-            attempts += 1
-            sleep(3 + 2**attempts)  # retry, but not too soon
-    else:
-        raise LabelError("5 failed attempts reading " + url)
+    fn = network.download_file(url)
+    label = pds4_read(fn, lazy_load=True, quiet=True).label
+    os.unlink(fn)
 
     return label
 
@@ -183,7 +170,7 @@ def new_labels(db, listfile):
         Database of ingested labels (``harvester_db``).
 
     listfile : str
-        Look for new labels in this file.
+        Look for new labels in this file.  It is expected to be gzipped.
 
     Returns
     -------
@@ -199,7 +186,7 @@ def new_labels(db, listfile):
     with gzip.open(listfile, "rt") as inf:
         for line in inf:
             line_count += 1
-            if re.match(".*data_calibrated/.*\.xml\n$", line):
+            if re.match(".*data_calibrated/.*\\.xml\n$", line):
                 if "collection" in line:
                     continue
                 calibrated_count += 1
