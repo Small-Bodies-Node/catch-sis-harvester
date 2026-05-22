@@ -28,6 +28,7 @@ from tempfile import TemporaryDirectory
 from urllib.parse import urljoin
 import lxml.html
 
+import numpy as np
 from astropy.time import Time
 import pds4_tools
 
@@ -47,7 +48,28 @@ ARCHIVE_BASE_URL = "https://sbnarchive.psi.edu/pds4/surveys/gbo.ast.spacewatch.s
 def get_arguments():
     from .. import config
 
-    parser = argparse.ArgumentParser(description="Harvest Spacewatch metadata.")
+    epilog = """
+Use this script to add Spacewatch metadata to the SBN Survey Image Service.
+
+1. Install and configure the SBN Survey Image Service module in a Python virtual
+   environment.
+
+2. Install the CATCH-SIS Harvester (this module) to the virtual environment.
+
+3. Get the Spacewatch collection label and inventory that contain the files from
+   which to harvest:
+   https://sbnarchive.psi.edu/pds4/surveys/gbo.ast.spacewatch.survey/
+
+4. Provide the collection label to the harvest script, e.g.:
+
+    harvest-spacewatch --target=sbnsis
+    collection_gbo.ast.spacewatch.survey_data.xml
+
+"""
+
+    parser = argparse.ArgumentParser(
+        description="Harvest Spacewatch metadata.", epilog=epilog
+    )
 
     parser.add_argument(
         "--target",
@@ -105,6 +127,7 @@ def get_inventory(args) -> list[str]:
         lidvids = list(lidvids - other)
 
     inventory = []
+    n = 0
     for row in lidvids:
         lidvid = LIDVID(row)
 
@@ -121,6 +144,11 @@ def get_inventory(args) -> list[str]:
             continue
 
         inventory.append(row)
+
+        n += 1
+        logn = np.log2(n)
+        if logn % 1.0 == 0:
+            logger.debug("." * int(logn))
 
     logger.info("%d LIDS to check", len(inventory))
 
