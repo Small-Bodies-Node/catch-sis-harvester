@@ -31,13 +31,10 @@ import lxml.html
 from astropy.time import Time
 import pds4_tools
 
-from catch import Catch, stats
-from catch.model.spacewatch import Spacewatch
 from sbsearch.logging import ProgressTriangle
 from sbn_survey_image_service.data.add import add_label
 from sbn_survey_image_service.services.database_provider import data_provider_session
 
-from ..collection import labels_from_inventory, case_insensitive_find_xml_file
 from .. import network
 from ..exceptions import ConcurrentHarvesting
 from ..harvest_log import HarvestLog
@@ -47,16 +44,10 @@ from ..logger import setup_logger, get_logger
 ARCHIVE_BASE_URL = "https://sbnarchive.psi.edu/pds4/surveys/gbo.ast.spacewatch.survey/"
 
 
-def get_observation(catch, label) -> Spacewatch:
-    lid = label.find("Identification_Area/logical_identifier").text
-    obs = catch.db.session.query(Spacewatch).filter(Spacewatch.product_id == lid).one()
-    return obs
-
-
 def get_arguments():
     from .. import config
 
-    parser = argparse.ArgumentParser(description="Add Spacewatch data to CATCH.")
+    parser = argparse.ArgumentParser(description="Harvest Spacewatch metadata.")
 
     parser.add_argument(
         "--target",
