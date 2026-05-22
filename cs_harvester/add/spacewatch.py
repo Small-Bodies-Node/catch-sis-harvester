@@ -51,7 +51,7 @@ def get_arguments():
 
     parser.add_argument(
         "--target",
-        choices=("sbnsis"),
+        choices=("sbnsis",),
         action="append",
         required="true",
         help="target database; specify at least one",
