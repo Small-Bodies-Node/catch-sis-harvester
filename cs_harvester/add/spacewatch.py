@@ -249,7 +249,8 @@ def add_to_sbnsis(files):
 
     logger = get_logger()
 
-    config.source = "sbnsis"
+    config.target = "sbnsis"
+    config.source = "spacewatch"
 
     if not os.path.exists(".env"):
         raise FileNotFoundError("Missing sbnsis .env file")
@@ -299,22 +300,21 @@ def add_to_sbnsis(files):
     logger.info("%d files errored", errors)
 
     # update harvest log
+    now = Time.now()
+    now.precision = 6
     harvest_log.data[-1]["files"] += tri.i
     harvest_log.data[-1]["added"] += added
     harvest_log.data[-1]["duplicates"] += duplicates
     harvest_log.data[-1]["errors"] += errors
+    harvest_log.data[-1]["end"] = now.iso
     harvest_log.data[-1]["time_of_last"] = max(
         harvest_log.data[-1]["time_of_last"],
-        Time.now().iso,
+        now.iso,
     )
     harvest_log.write()
 
 
 def main():
-    from .. import config
-
-    config.source = "spacewatch"
-
     args = get_arguments()
     setup_logger()
 
