@@ -243,7 +243,7 @@ def process_date(inventory, date, targets, harvest_log):
 
     # Find image products at the URL
     url = urljoin(ARCHIVE_BASE_URL, f"data/{date}/")
-    logger.info("Processing %d", date)
+    logger.info("Processing %s", date)
     logger.debug(
         "Inspecting URL %s for image labels",
         url,
