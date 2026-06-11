@@ -339,7 +339,7 @@ def main():
             #     if not re.match("20[0-2][0-9]_[01][0-9]_[0123][0-9]", date):
             #         print(date)
             ingested_dates = {
-                row[0]
+                row[0].replace("_", "/")
                 for row in sbnsis.execute(
                     select(
                         func.substring(
