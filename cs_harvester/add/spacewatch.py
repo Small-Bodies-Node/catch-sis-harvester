@@ -227,7 +227,7 @@ def process_date(inventory, date, targets):
     with TemporaryDirectory() as tempd:
         files = []
         for fn in get_labels(url, index, tempd):
-            lidvid = LIDVID.from_label(pds4_tools.pds4_read(fn, lazy_load=True))
+            lidvid = LIDVID.from_label(pds4_tools.pds4_read(fn))
             if str(lidvid) in inventory:
                 files.append(fn)
             else:
