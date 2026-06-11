@@ -22,6 +22,7 @@ gbo.ast.spacewatch.survey/data/collection_gbo.ast.spacewatch.survey_data_invento
 """
 
 import os
+import re
 import sys
 import argparse
 from tempfile import TemporaryDirectory
@@ -32,8 +33,10 @@ import numpy as np
 from astropy.time import Time
 import pds4_tools
 from pds4_tools.reader.label_objects import Label
+from sqlalchemy import func, select
 
 from sbsearch.logging import ProgressTriangle
+from sbn_survey_image_service.models import Image
 from sbn_survey_image_service.data.add import add_label
 from sbn_survey_image_service.services.database_provider import data_provider_session
 
@@ -220,6 +223,7 @@ def process_date(inventory, date, targets):
 
     # Find image products at the URL
     url = urljoin(ARCHIVE_BASE_URL, f"data/{date}/")
+    logger.info("Processing %d", date)
     logger.debug(
         "Inspecting URL %s for image labels",
         url,
@@ -316,7 +320,7 @@ def add_to_sbnsis(files):
 
 def main():
     args = get_arguments()
-    setup_logger()
+    logger = setup_logger()
 
     inventory = get_inventory(args)
 
@@ -325,6 +329,35 @@ def main():
     for row in inventory:
         lidvid = LIDVID(row)
         dates.add("/".join(lidvid.product_id.split("_")[-6:-3]))
+
+    logger.info("%d nights in inventory", len(dates))
+
+    if not args.update:
+        # find dates already processed
+        with data_provider_session() as sbnsis:
+            # verified that this works with all LIDs:
+            # dates = set()
+            # for line in open("collection_gbo.ast.spacewatch.survey_data_inventory.csv"):
+            #     dates.add(line[-34:-24])  # offsets for lidvid
+            # for date in dates:
+            #     if not re.match("20[0-2][0-9]_[01][0-9]_[0123][0-9]", date):
+            #         print(date)
+            ingested_dates = {
+                row[0]
+                for row in sbnsis.execute(
+                    select(
+                        func.substring(
+                            Image.obs_id, func.length(Image.obs_id) - 27, 10
+                        ).distinct()
+                    ).where(
+                        Image.collection
+                        == "urn:nasa:pds:gbo.ast.spacewatch.survey:data"
+                    )
+                )
+            }
+        dates = dates - ingested_dates
+
+    logger.info("%d nights to process", len(dates))
 
     # process by date
     for date in dates:
