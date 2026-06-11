@@ -216,10 +216,30 @@ def get_labels(url: str, doc: lxml.html.HtmlElement, path: str) -> list[str]:
     return labels
 
 
-def process_date(inventory, date, targets):
+def process_date(inventory, date, targets, harvest_log):
     """Find and process all Spacewatch labels for date and in inventory."""
 
+    from .. import config
+
     logger = get_logger()
+
+    config.target = "sbnsis"
+    config.source = "spacewatch"
+
+    now = Time.now()
+    now.precision = 6
+    harvest_log.data.add_row(
+        {
+            "target": config.target,
+            "start": now.iso,
+            "end": "processing",
+            "source": config.source,
+            "time_of_last": "",
+            "files": 0,
+            "added": 0,
+            "errors": 0,
+        }
+    )
 
     # Find image products at the URL
     url = urljoin(ARCHIVE_BASE_URL, f"data/{date}/")
@@ -245,40 +265,16 @@ def process_date(inventory, date, targets):
 
         for target in targets:
             if target == "sbnsis":
-                add_to_sbnsis(files)
+                add_to_sbnsis(files, harvest_log)
 
 
-def add_to_sbnsis(files):
+def add_to_sbnsis(files, harvest_log):
     from .. import config
 
     logger = get_logger()
 
-    config.target = "sbnsis"
-    config.source = "spacewatch"
-
     if not os.path.exists(".env"):
         raise FileNotFoundError("Missing sbnsis .env file")
-
-    try:
-        harvest_log = HarvestLog()
-    except ConcurrentHarvesting:
-        logger.error("Another process has locked the harvest log")
-        sys.exit(1)
-
-    now = Time.now()
-    now.precision = 6
-    harvest_log.data.add_row(
-        {
-            "target": config.target,
-            "start": now.iso,
-            "end": "processing",
-            "source": config.source,
-            "time_of_last": "",
-            "files": 0,
-            "added": 0,
-            "errors": 0,
-        }
-    )
 
     # harvest metadata
     added = 0
@@ -359,6 +355,12 @@ def main():
 
     logger.info("%d nights to process", len(dates))
 
+    try:
+        harvest_log = HarvestLog()
+    except ConcurrentHarvesting:
+        logger.error("Another process has locked the harvest log")
+        sys.exit(1)
+
     # process by date
     for date in dates:
-        process_date(inventory, date, args.target)
+        process_date(inventory, date, args.target, harvest_log)
