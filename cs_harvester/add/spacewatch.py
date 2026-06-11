@@ -79,7 +79,7 @@ Use this script to add Spacewatch metadata to the SBN Survey Image Service.
         help="target database; specify at least one",
     )
 
-    config.add_arguments(parser)
+    config.add_arguments(parser, catch=False)
 
     parser.add_argument(
         "collection",
