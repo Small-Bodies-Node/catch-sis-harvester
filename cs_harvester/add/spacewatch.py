@@ -31,6 +31,7 @@ import lxml.html
 import numpy as np
 from astropy.time import Time
 import pds4_tools
+from pds4_tools.reader.label_objects import Label
 
 from sbsearch.logging import ProgressTriangle
 from sbn_survey_image_service.data.add import add_label
@@ -155,6 +156,11 @@ def get_inventory(args) -> list[str]:
     return inventory
 
 
+def read_label(fn: str) -> Label:
+    """Read and return a PDS4 label from a local file."""
+    return pds4_tools.read(fn, quiet=True, lazy_load=True).label
+
+
 def get_labels(url: str, doc: lxml.html.HtmlElement, path: str) -> list[str]:
     """Download all XML label URLs linked in this HTML document's table.
 
@@ -227,7 +233,7 @@ def process_date(inventory, date, targets):
     with TemporaryDirectory() as tempd:
         files = []
         for fn in get_labels(url, index, tempd):
-            lidvid = LIDVID.from_label(pds4_tools.pds4_read(fn))
+            lidvid = LIDVID.from_label(read_label(fn))
             if str(lidvid) in inventory:
                 files.append(fn)
             else:
