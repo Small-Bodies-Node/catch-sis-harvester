@@ -260,6 +260,21 @@ def add_to_sbnsis(files):
         logger.error("Another process has locked the harvest log")
         sys.exit(1)
 
+    now = Time.now()
+    now.precision = 6
+    harvest_log.data.add_row(
+        {
+            "target": config.target,
+            "start": now.iso,
+            "end": "processing",
+            "source": config.source,
+            "time_of_last": "",
+            "files": 0,
+            "added": 0,
+            "errors": 0,
+        }
+    )
+
     # harvest metadata
     added = 0
     duplicates = 0
