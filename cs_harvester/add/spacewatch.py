@@ -207,7 +207,7 @@ def get_labels(url: str, doc: lxml.html.HtmlElement, path: str) -> list[str]:
         href = a.get("href")
         if href.endswith(".xml"):
             label_url = urljoin(url, href)
-            fn = network.download_file(label_url)
+            fn = network.download_file(label_url, 12)
             new_fn = os.path.join(path, os.path.basename(fn))
             os.rename(fn, new_fn)
             labels.append(new_fn)
