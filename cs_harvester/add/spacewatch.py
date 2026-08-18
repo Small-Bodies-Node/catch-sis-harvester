@@ -22,7 +22,6 @@ gbo.ast.spacewatch.survey/data/collection_gbo.ast.spacewatch.survey_data_invento
 """
 
 import os
-import re
 import sys
 import argparse
 from tempfile import TemporaryDirectory
