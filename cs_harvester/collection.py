@@ -2,8 +2,9 @@ import os
 from glob import glob
 from typing import Iterator
 import pds4_tools
-from .lidvid import LIDVID
+
 from .logger import get_logger
+from .lidvid import LIDVID
 
 
 def labels_from_inventory(
@@ -29,8 +30,7 @@ def labels_from_inventory(
 
     Returns
     -------
-    iterator
-        File name and label.
+    iterator of `Label`s.
 
     """
 

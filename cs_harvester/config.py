@@ -1,7 +1,6 @@
-from argparse import ArgumentParser
+from argparse import ArgumentParser, SUPPRESS
 from catch.config import Config as CatchConfig
 from .lidvid import LIDVID
-
 
 harvest_log_filename: str = "harvest-log.ecsv"
 harvest_log_format: str = "ascii.ecsv"
@@ -15,14 +14,14 @@ runtime_log_filename: str = ""
 only_process: list[str] | None = None
 
 
-def add_arguments(parser):
+def add_arguments(parser: ArgumentParser, catch: bool = True):
     """Add global configuration arguments to the argument parser."""
 
     parser.add_argument(
         "--catch-config",
         default=None,
         type=CatchConfig.from_file,
-        help="CATCH configuration file",
+        help="CATCH configuration file" if catch else SUPPRESS,
     )
 
     parser.add_argument(

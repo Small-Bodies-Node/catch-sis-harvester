@@ -79,9 +79,11 @@ def download_file(url: str, max_attempts: int = 5) -> str:
     while attempts < max_attempts:
         try:
             with set_astropy_useragent():
-                file_name = _download_file(url, cache=False, show_progress=False)
+                file_name = _download_file(
+                    url, cache=False, show_progress=False, timeout=10
+                )
             break
-        except urllib.error.URLError as e:
+        except (urllib.error.URLError, TimeoutError) as e:
             logger.error(str(e))
             attempts += 1
             if attempts >= max_attempts:
