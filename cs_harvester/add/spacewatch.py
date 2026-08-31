@@ -21,6 +21,10 @@ gbo.ast.spacewatch.survey/data/collection_gbo.ast.spacewatch.survey_data_invento
 
 """
 
+raise Exception(
+    "This script doesn't work as is.  The URLs saved to the database are local files."
+)
+
 import os
 import sys
 import argparse
