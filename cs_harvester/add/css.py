@@ -25,7 +25,7 @@ from sbsearch.logging import ProgressTriangle
 
 from ..logger import get_logger, setup_logger
 from ..harvest_log import HarvestLog
-from ..exceptions import ConcurrentHarvesting, LabelError
+from ..exceptions import ConcurrentHarvesting
 from ..process import process
 from .. import network
 

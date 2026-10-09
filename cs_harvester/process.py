@@ -93,13 +93,22 @@ def process(label: Label, source: str, update: Observation | None = None):
         label.find("Observation_Area/Time_Coordinates/stop_date_time").text
     ).mjd
 
-    exposure = label.find(".//img:Exposure/img:exposure_duration")
+    try:
+        exposure = label.find(".//img:Exposure/img:exposure_duration")
+    except SyntaxError:
+        # SyntaxError: prefix 'img' not found in prefix map
+        exposure = None
+
     if exposure is None:
         obs.exposure = round((obs.mjd_stop - obs.mjd_start) * 86400, 3)
     else:
         obs.exposure = float(exposure.text)
 
-    filter = label.find(".//img:Optical_Filter/img:filter_name")
+    try:
+        filter = label.find(".//img:Optical_Filter/img:filter_name")
+    except SyntaxError:
+        filter = None
+
     obs.filter = None if filter is None else filter.text
 
     survey = label.find(".//survey:Survey")
