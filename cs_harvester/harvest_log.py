@@ -53,24 +53,12 @@ class HarvestLog:
             raise ConcurrentHarvesting()
 
     def write(self) -> None:
-        """Write harvest log data to the disk.
-
-        A backup file is made and the last 5 backups are kept.
-
-        """
+        """Write harvest log data to the disk."""
 
         from . import config
 
         if config.dry_run:
             return
-
-        os.system(
-            f"cp -f --backup=numbered {config.harvest_log_filename} {config.harvest_log_filename}"
-        )
-
-        sixth_backup = config.harvest_log_filename + ".~6~"
-        if os.path.exists(sixth_backup):
-            os.unlink(sixth_backup)
 
         self.data.write(
             config.harvest_log_filename,
