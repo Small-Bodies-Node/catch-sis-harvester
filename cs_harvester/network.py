@@ -51,7 +51,7 @@ def set_astropy_useragent():
         yield
 
 
-def download_file(url: str, max_attempts: int = 5) -> str:
+def download_file(url: str, max_attempts: int = 9) -> str:
     """Download a file from a URL and save.
 
 
@@ -83,7 +83,7 @@ def download_file(url: str, max_attempts: int = 5) -> str:
                     url, cache=False, show_progress=False, timeout=10
                 )
             break
-        except (urllib.error.URLError, TimeoutError) as e:
+        except (urllib.error.URLError, TimeoutError, ConnectionResetError) as e:
             logger.error(str(e))
             attempts += 1
             if attempts >= max_attempts:
