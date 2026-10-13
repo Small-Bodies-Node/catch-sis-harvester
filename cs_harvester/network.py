@@ -80,7 +80,7 @@ def download_file(url: str, max_attempts: int = 9) -> str:
         try:
             with set_astropy_useragent():
                 file_name = _download_file(
-                    url, cache=False, show_progress=False, timeout=10
+                    url, cache=False, show_progress=False, timeout=30
                 )
             break
         except (urllib.error.URLError, TimeoutError, ConnectionResetError) as e:
